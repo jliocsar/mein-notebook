@@ -17,7 +17,7 @@ _Easy to use CLI notes manager_
 
 ---
 
-To install (NOT PUBLISHED):
+To install **(NOT PUBLISHED)**:
 
 ```bash
 npm i -g @jliocsar/mein-notebook
