@@ -9,7 +9,8 @@
     "db:generate": "drizzle-kit generate:sqlite",
     "db:transpile": "civet < lib/db/schema.civet > lib/db/schema.ts",
     "db:migrate": "bun db:transpile && bun run --bun lib/db/migrate.civet",
-    "db:seed": "bun run --bun db/seed.civet"
+    "db:seed": "bun run --bun db/seed.civet",
+    "postinstall": "bun db:transpile"
   },
   "devDependencies": {
     "@types/yargs": "latest",
