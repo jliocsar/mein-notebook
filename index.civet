@@ -211,7 +211,7 @@ create := ->
   void 0
 
 yargs hideBin argv
-  |> .scriptName 'mein-notes'
+  |> .scriptName 'mein-notebook'
   |> .usage '$0 <cmd> [options]'
   |> .command 'auth', 'Updates the database access configuration', ->, auth
   |> .command 'list', 'List all notes',

@@ -32,14 +32,14 @@ mein-notebook --version
 Usage:
 
 ```
-mein-notes <cmd> [options]
+mein-notebook <cmd> [options]
 
 Commands:
-  mein-notes auth            Updates the database access configuration
-  mein-notes list            List all notes
-  mein-notes delete <id...>  Delete note(s) by ID(s) ("all" to delete all)
-  mein-notes update <id>     Update a note
-  mein-notes create          Create a note
+  mein-notebook auth            Updates the database access configuration
+  mein-notebook list            List all notes
+  mein-notebook delete <id...>  Delete note(s) by ID(s) ("all" to delete all)
+  mein-notebook update <id>     Update a note
+  mein-notebook create          Create a note
 
 Options:
   --help     Show help                                                 [boolean]
