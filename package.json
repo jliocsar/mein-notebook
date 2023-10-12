@@ -25,6 +25,7 @@
     "@topcli/spinner": "latest",
     "cli-table3": "latest",
     "colorette": "latest",
+    "dayjs": "latest",
     "drizzle-orm": "latest",
     "yargs": "latest"
   }

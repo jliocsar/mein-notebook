@@ -4,6 +4,7 @@ path from node:path
 
 Table from cli-table3
 yargs from yargs/yargs
+dayjs from dayjs
 * as colorette from colorette
 { Spinner } from @topcli/spinner
 { hideBin } from yargs/helpers
@@ -82,14 +83,27 @@ readStdin := ->
 listAll := ->
   spinner := new Spinner |> .start 'Loading notes...'
   table := new Table
-    head: ['id', 'content', 'createdAt', 'expiresAt']
+    head: ['ID', 'Content', 'Created at', 'Expires at']
     colWidths: [10, 40, 28, 28]
   try
     allNotes := db!.select() |> .from notes |> await
     console.clear()
     spinner.succeed colorette.bold 'Notes:'
+    expired : number[] := []
     for { id, content, createdAt, expiresAt } of allNotes
-      table.push [id, content, createdAt.toLocaleString(), expiresAt?.toLocaleString()]
+      hasExpired := expiresAt and expiresAt < new Date()
+      if hasExpired
+        expired.push id
+      else
+        table.push [
+          id
+          content
+          createdAt.toLocaleString()
+          expiresAt?.toLocaleString()
+        ]
+    unless expired.length is 0
+      stdout.write colorette.cyanBright 'Some notes have expired\n'
+      await deleteByIds expired
     table
       |> .toString()
       |> (str) -> stdout.write str + '\n'
@@ -99,13 +113,18 @@ listAll := ->
     exit 1
   void 0
 
-deleteById := (ids?: number[]) ->
+deleteByIds := (ids?: (string | number)[]) ->
   unless ids
     stderr.write 'No note ID entered\n'
     exit 1
   try
+    shouldDeleteAll := ids.length is 1
+      and ids.0 is 'all'
     db!.delete notes
-      |> .where inArray notes.id, ids
+      |> .where
+        shouldDeleteAll
+          ? undefined
+          : inArray notes.id, ids.map Number
       |> .returning()
       |> await
     listAll()
@@ -139,12 +158,29 @@ update := (id?: number) ->
 create := ->
   stdout.write colorette.bold 'Enter note: \n'
   content := readStdin() |> await
-  unless content
+  stdout.write colorette.bold '\nExpires at: \n'
+  createdAt := dayjs()
+  expiresAt := readStdin()
+    |> await |> (val) ->
+      unless val
+        return null
+      [time, rawPeriod] := val!.split ' '
+      unless rawPeriod
+        return null
+      period := rawPeriod.replace /s$/, ''
+      createdAt.add
+        Number time
+        period as dayjs.ManipulateType
+  unless content  
     stderr.write 'No note entered\n'
     exit 1
   try
     db!.insert notes
-      |> .values { content, createdAt: new Date() }
+      |> .values {
+          content,
+          createdAt: createdAt.toDate(),
+          expiresAt: expiresAt?.toDate()
+        }
       |> await
     listAll()
   catch error
@@ -164,8 +200,8 @@ yargs hideBin argv
   |> .command 'list', 'List all notes', ->, listAll
   |> .command 'delete <id...>', 'Delete a note',
     (yargs) -> yargs
-      |> .positional 'id', { describe: 'Note id', type: 'number', array: true }
-    (args) -> deleteById args.id
+      |> .positional 'id', { describe: 'Note id', type: 'string', array: true }
+    (args) -> deleteByIds args.id
   |> .command 'update <id>', 'Update a note',
     (yargs) -> yargs
       |> .positional 'id', { describe: 'Note id', type: 'number' }
