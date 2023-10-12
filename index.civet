@@ -2,6 +2,7 @@
 fs from node:fs/promises
 path from node:path
 
+type { ArgumentsCamelCase } from yargs
 Table from cli-table3
 yargs from yargs/yargs
 dayjs from dayjs
@@ -12,7 +13,7 @@ dayjs from dayjs
 
 type { TDbCredentials } from ./drizzle.config
 { createClient } from ./lib/db/client.civet
-{ notes } from ./lib/db/schema
+{ notes, SelectNote } from ./lib/db/schema
 
 process.on 'SIGINT', ->
   stdout.write colorette.redBright 'Aborting...\n'
@@ -40,6 +41,7 @@ BANNER := colorette.magenta
            ${colorette.italic colorette.white 'mein-notebook'}
   `
 
+choices := ['id', 'content', 'createdAt', 'expiresAt']
 noop : boolean .= false
 
 auth := : Promise<void> ->
@@ -80,7 +82,19 @@ readStdin := ->
       return chunk |> Buffer.from |> .toString().trim()
   null
 
-listAll := ->
+sortBy := (choice: number) ->
+  (orig: any, comp: any) ->
+    unless orig[choice] and comp[choice] then 0
+    else
+      orig[choice]! > comp[choice]! ? 1 : -1
+
+sortByDesc := (choice: number) ->
+  (orig: any, comp: any) ->
+    unless orig[choice] and comp[choice] then 0
+    else
+      orig[choice]! < comp[choice]! ? 1 : -1
+
+listAll := (args?: ArgumentsCamelCase<{ sort?: string, sortdesc?: string }>) ->
   spinner := new Spinner |> .start 'Loading notes...'
   table := new Table
     head: ['ID', 'Content', 'Created at', 'Expires at']
@@ -90,12 +104,13 @@ listAll := ->
     console.clear()
     spinner.succeed colorette.bold 'Notes:'
     expired : number[] := []
+    rows .= []
     for { id, content, createdAt, expiresAt } of allNotes
       hasExpired := expiresAt and expiresAt < new Date()
       if hasExpired
         expired.push id
       else
-        table.push [
+        rows.push [
           id
           content
           createdAt.toLocaleString()
@@ -104,7 +119,13 @@ listAll := ->
     unless expired.length is 0
       stdout.write colorette.cyanBright 'Some notes have expired\n'
       await deleteByIds expired
+    sort := args?.sort or args?.sortdesc
+    isDescending := args?.sortdesc is sort
+    if sort and sort is in choices
+      choice := choices.indexOf sort
+      rows = (isDescending ? sortByDesc : sortBy) choice |> rows.sort
     table
+      ||> .push ...rows
       |> .toString()
       |> (str) -> stdout.write str + '\n'
   catch error
@@ -192,13 +213,21 @@ create := ->
 yargs hideBin argv
   |> .scriptName 'mein-notes'
   |> .usage '$0 <cmd> [options]'
-  |> .command 'auth', 'Authorizes the CLI tool to access the database', ->, auth
-  |> .command 'upgrade', 'Upgrades the CLI tool to its last version', ->, ->
-    stdout.write BANNER + '\n'
-    stdout.write 'Fetching last version...\n'
-    void 0
-  |> .command 'list', 'List all notes', ->, listAll
-  |> .command 'delete <id...>', 'Delete a note',
+  |> .command 'auth', 'Updates the database access configuration', ->, auth
+  |> .command 'list', 'List all notes',
+    (yargs) -> yargs
+      |> .option 'sort', {
+          choices
+          describe: 'Field to sort ascending by'
+          type: 'string'
+        }
+      |> .option 'sortdesc', {
+          choices
+          describe: 'Field to sort descending by'
+          type: 'string'
+        }
+    listAll
+  |> .command 'delete <id...>', 'Delete note(s) by ID(s) or all',
     (yargs) -> yargs
       |> .positional 'id', { describe: 'Note id', type: 'string', array: true }
     (args) -> deleteByIds args.id

@@ -29,6 +29,23 @@ To run:
 mein-notebook --version
 ```
 
+Usage:
+
+```
+mein-notes <cmd> [options]
+
+Commands:
+  mein-notes auth            Updates the database access configuration
+  mein-notes list            List all notes
+  mein-notes delete <id...>  Delete note(s) by ID(s)
+  mein-notes update <id>     Update a note
+  mein-notes create          Create a note
+
+Options:
+  --help     Show help                                                 [boolean]
+  --version  Show version number                                       [boolean]
+```
+
 This project was created using `bun init` in bun v1.0.4. [Bun](https://bun.sh) is a fast all-in-one JavaScript runtime.
 
 [bun-badge]: https://img.shields.io/badge/bun-fbf0df?style=flat-square&logo=bun&logoColor=fbf0df&color=14151a
