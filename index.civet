@@ -1,0 +1,171 @@
+{ argv, stdout, stderr, exit } from node:process
+fs from node:fs/promises
+path from node:path
+
+Table from cli-table3
+yargs from yargs/yargs
+* as colorette from colorette
+{ Spinner } from @topcli/spinner
+{ hideBin } from yargs/helpers
+{ eq, inArray } from drizzle-orm
+
+type { TDbCredentials } from ./drizzle.config
+{ createClient } from ./lib/db/client.civet
+{ notes } from ./lib/db/schema
+
+process.on 'SIGINT', ->
+  stdout.write colorette.redBright 'Aborting...\n'
+  exit 0
+
+MEINE_NOTEBOOK_PATH := '.meine-notebook'
+DATABASE_CONFIG_PATH := path.join MEINE_NOTEBOOK_PATH, 'database.json'
+BANNER := colorette.magenta
+  `
+            .   *#          ..   
+    :--     -@*  @@  .:     =---  
+    =-=.    +@#  @@  =@+     ::   
+            =@# :@%  #@= +.       
+            @@#%@@+%@# -@+       
+        --   +@@@@@@@@@%@#        
+        #@*. =@@@@@@@@@@#         
+        *@@@@@@@@@@@@@@          
+          =#@@@@@@@@@@=          
+    ..:     -%@@@@@@@*           
+    .:-      .@@@@@@.   .-+      
+              .@@#*#@             
+          ++=*##@@@*##=:         
+  :.:--#%%%%%%%%%%%%%%%%%#*--.-: 
+
+          ${colorette.italic colorette.white 'mein-notebook'}
+  `
+
+auth := : Promise<void> ->
+  stdout.write BANNER + '\n'
+  stdout.write colorette.yellowBright 'WARN!\n'
+  stdout.write 'No database config found, asking for one...\n\n'
+
+  stdout.write colorette.dim 'URL of the database:\n'
+  url := readStdin() |> await
+  stdout.write colorette.dim '\nDatabase auth token:\n'
+  authToken := readStdin() |> await
+  spinner := new Spinner
+    |> .start colorette.cyanBright 'Writing database auth...'
+
+  try
+    unless await fs.exists MEINE_NOTEBOOK_PATH
+      await fs.mkdir MEINE_NOTEBOOK_PATH
+    data := { url, authToken } as TDbCredentials |> JSON.stringify
+    await fs.writeFile DATABASE_CONFIG_PATH, data
+    spinner.succeed 'Database authenticated...'
+  catch error
+    spinner.failed 'Failed to write database config'
+    stderr.write (error as Error).message + '\n'
+    exit 1
+
+
+if not await fs.exists DATABASE_CONFIG_PATH
+  await auth()
+
+{ db } := await createClient()
+
+readStdin := ->
+  for await chunk of Bun.stdin.stream()
+    if chunk
+      return chunk |> Buffer.from |> .toString().trim()
+  ''
+
+listAll := ->
+  spinner := new Spinner |> .start 'Loading...'
+  table := new Table
+    head: ['id', 'content', 'createdAt', 'expiresAt']
+    colWidths: [10, 40, 28, 28]
+  try
+    allNotes := db.select() |> .from notes |> await
+    console.clear()
+    spinner.succeed colorette.bold 'Notes:'
+    for { id, content, createdAt, expiresAt } of allNotes
+      table.push [id, content, createdAt.toLocaleString(), expiresAt?.toLocaleString()]
+    table
+      |> .toString()
+      |> (str) -> stdout.write str + '\n'
+  catch error
+    spinner.failed 'Failed to load notes'
+    stderr.write (error as Error).message + '\n'
+    exit 1
+  void 0
+
+deleteById := (ids?: number[]) ->
+  unless ids
+    stderr.write 'No note ID entered\n'
+    exit 1
+  try
+    db.delete notes
+      |> .where inArray notes.id, ids
+      |> .returning()
+      |> await
+    listAll()
+  catch error
+    stderr.write (error as Error).message + '\n'
+    exit 1
+  void 0
+
+update := (id?: number) ->
+  unless id
+    stderr.write 'No note ID entered\n'
+    exit 1
+  stdout.write 'Enter note update: \n'
+  content := readStdin() |> await
+  unless content
+    stderr.write 'No note entered\n'
+    exit 1
+  try
+    db.update notes
+      |> .set { content }
+      |> .where eq notes.id, id
+      |> .returning()
+      |> await
+    listAll()
+  catch error
+    stderr.write (error as Error).message + '\n'
+    exit 1
+  stdout.write '1'
+  void 0
+
+create := ->
+  stdout.write colorette.bold 'Enter note: \n'
+  content := readStdin() |> await
+  unless content
+    stderr.write 'No note entered\n'
+    exit 1
+  try
+    db.insert notes
+      |> .values { content, createdAt: new Date() }
+      |> await
+    listAll()
+  catch error
+    stderr.write (error as Error).message + '\n'
+    exit 1
+  stdout.write '1'
+  void 0
+
+yargs hideBin argv
+  |> .scriptName 'mein-notes'
+  |> .usage '$0 <cmd> [options]'
+  |> .command 'auth', 'Authorizes the CLI tool to access the database', ->, auth
+  |> .command 'upgrade', 'Upgrades the CLI tool to its last version', ->, ->
+    stdout.write BANNER + '\n'
+    stdout.write 'Fetching last version...\n'
+    void 0
+  |> .command 'list', 'List all notes', ->, listAll
+  |> .command 'delete <id...>', 'Delete a note',
+    (yargs) -> yargs
+      |> .positional 'id', { describe: 'Note id', type: 'number', array: true }
+    (args) -> deleteById args.id
+  |> .command 'update <id>', 'Update a note',
+    (yargs) -> yargs
+      |> .positional 'id', { describe: 'Note id', type: 'number' }
+    (args) -> update args.id
+  |> .command 'create', 'Create a note', ->, create
+  |> .demandCommand 1
+  |> .recommendCommands()
+  |> .argv

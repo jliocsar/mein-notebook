@@ -1,0 +1,31 @@
+{
+  "name": "mein-notebook",
+  "module": "index.civet",
+  "type": "module",
+  "scripts": {
+    "start": "bun run --bun index.civet",
+    "transpile": "civet -c *.civet lib/db/*.civet",
+    "db:studio": "drizzle-kit studio --port 3333",
+    "db:generate": "drizzle-kit generate:sqlite",
+    "db:transpile": "civet < lib/db/schema.civet > lib/db/schema.ts",
+    "db:migrate": "bun db:transpile && bun run --bun lib/db/migrate.civet",
+    "db:seed": "bun run --bun db/seed.civet"
+  },
+  "devDependencies": {
+    "@types/yargs": "latest",
+    "bun-types": "latest",
+    "drizzle-kit": "latest"
+  },
+  "peerDependencies": {
+    "typescript": "latest"
+  },
+  "dependencies": {
+    "@danielx/civet": "latest",
+    "@libsql/client": "latest",
+    "@topcli/spinner": "^2.1.2",
+    "cli-table3": "latest",
+    "colorette": "latest",
+    "drizzle-orm": "latest",
+    "yargs": "latest"
+  }
+}

@@ -1,0 +1,15 @@
+* as path from node:path
+{ drizzle } from drizzle-orm/libsql
+{ createClient: createLibsqlClient } from @libsql/client
+
+* as schema from ./schema.civet
+
+export createClient := ->
+  drizzleConfigPath := path.resolve import.meta.dir, '../../drizzle.config.js'
+  { default: drizzleConfig } := await import drizzleConfigPath
+  client := createLibsqlClient drizzleConfig.dbCredentials
+  db := drizzle client, {
+    schema
+    // +logger
+  }
+  { client, db }

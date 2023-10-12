@@ -1,0 +1,16 @@
+path from node:path
+{ exit } from node:process
+
+{ migrate } from drizzle-orm/libsql/migrator
+
+{ db } from ./client.civet
+
+try
+  migrate db,
+    migrationsFolder: path.resolve(import.meta.dir, 'migrations')
+  |> await
+  console.info 'Tables migrated!'
+  exit 0
+catch (error)
+  console.error 'Error performing migration: ', (error as Error).message
+  exit 1
