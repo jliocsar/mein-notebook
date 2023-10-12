@@ -37,7 +37,7 @@ mein-notes <cmd> [options]
 Commands:
   mein-notes auth            Updates the database access configuration
   mein-notes list            List all notes
-  mein-notes delete <id...>  Delete note(s) by ID(s)
+  mein-notes delete <id...>  Delete note(s) by ID(s) ("all" to delete all)
   mein-notes update <id>     Update a note
   mein-notes create          Create a note
 

@@ -96,12 +96,8 @@ sortByDesc := (choice: number) ->
 
 listAll := (args?: ArgumentsCamelCase<{ sort?: string, sortdesc?: string }>) ->
   spinner := new Spinner |> .start 'Loading notes...'
-  table := new Table
-    head: ['ID', 'Content', 'Created at', 'Expires at']
-    colWidths: [10, 40, 28, 28]
   try
     allNotes := db!.select() |> .from notes |> await
-    console.clear()
     spinner.succeed colorette.bold 'Notes:'
     expired : number[] := []
     rows .= []
@@ -110,12 +106,12 @@ listAll := (args?: ArgumentsCamelCase<{ sort?: string, sortdesc?: string }>) ->
       if hasExpired
         expired.push id
       else
-        rows.push [
+        rows.push {
           id
           content
-          createdAt.toLocaleString()
-          expiresAt?.toLocaleString()
-        ]
+          createdAt: createdAt.toLocaleString()
+          expiresAt: expiresAt?.toLocaleString()
+        }
     unless expired.length is 0
       stdout.write colorette.cyanBright 'Some notes have expired\n'
       await deleteByIds expired
@@ -124,10 +120,15 @@ listAll := (args?: ArgumentsCamelCase<{ sort?: string, sortdesc?: string }>) ->
     if sort and sort is in choices
       choice := choices.indexOf sort
       rows = (isDescending ? sortByDesc : sortBy) choice |> rows.sort
-    table
-      ||> .push ...rows
-      |> .toString()
-      |> (str) -> stdout.write str + '\n'
+    rows
+      |> .map (row) ->
+        `
+${colorette.bold colorette.greenBright 'ID' }: ${colorette.bold row.id} ${colorette.dim '|'} 📅 ${row.createdAt} ${row.expiresAt ? `${colorette.dim '|'} 🕒 ${row.expiresAt}` : ''}
+
+${row.content}
+`
+      |> .join colorette.dim '_______________________________________________________________\n'
+      |> stdout.write
   catch error
     spinner.failed 'Failed to load notes'
     stderr.write (error as Error).message + '\n'
@@ -148,7 +149,8 @@ deleteByIds := (ids?: (string | number)[]) ->
           : inArray notes.id, ids.map Number
       |> .returning()
       |> await
-    listAll()
+    unless shouldDeleteAll
+      listAll()
   catch error
     stderr.write (error as Error).message + '\n'
     exit 1
@@ -227,7 +229,7 @@ yargs hideBin argv
           type: 'string'
         }
     listAll
-  |> .command 'delete <id...>', 'Delete note(s) by ID(s) or all',
+  |> .command 'delete <id...>', 'Delete note(s) by ID(s) ("all" to delete all)',
     (yargs) -> yargs
       |> .positional 'id', { describe: 'Note id', type: 'string', array: true }
     (args) -> deleteByIds args.id

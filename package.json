@@ -23,7 +23,6 @@
     "@danielx/civet": "latest",
     "@libsql/client": "latest",
     "@topcli/spinner": "latest",
-    "cli-table3": "latest",
     "colorette": "latest",
     "dayjs": "latest",
     "drizzle-orm": "latest",
