@@ -2,7 +2,7 @@
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="./.github/white-hand.png">
-  <img alt="Logo" src="./.github/hand.png" width="128">
+  <img alt="Logo" src="./.github/hand.png" width="196">
 </picture>
 
 # Mein Notebook
