@@ -36,7 +36,7 @@ BANNER := colorette.magenta
           ++=*##@@@*##=:         
   :.:--#%%%%%%%%%%%%%%%%%#*--.-: 
 
-          ${colorette.italic colorette.white 'mein-notebook'}
+           ${colorette.italic colorette.white 'mein-notebook'}
   `
 
 noop : boolean .= false
@@ -60,9 +60,9 @@ auth := : Promise<void> ->
     data := { url, authToken } as TDbCredentials |> JSON.stringify
     await Bun.write DATABASE_CONFIG_PATH, data
     noop = true
-    spinner.succeed 'Database authenticated...'
+    spinner.succeed '\nDatabase authenticated...\n'
   catch error
-    spinner.failed 'Failed to write database config'
+    spinner.failed '\nFailed to write database config\n'
     stderr.write (error as Error).message + '\n'
     await fs.rm MEINE_NOTEBOOK_PATH, recursive: true
     exit 1
