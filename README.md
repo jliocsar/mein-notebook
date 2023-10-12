@@ -5,7 +5,7 @@
   <img alt="Logo" src="./.github/hand.png" width="196">
 </picture>
 
-# Mein Notebook
+# Notiz
 
 [![Bun][bun-badge]][bun-url] [![Turso][turso-badge]][turso-url] [![Civet][civet-badge]][civet-url]
 
@@ -20,26 +20,26 @@ _Easy to use CLI notes manager_
 To install **(NOT PUBLISHED)**:
 
 ```bash
-npm i -g @jliocsar/mein-notebook
+npm i -g @jliocsar/notiz
 ```
 
 To run:
 
 ```bash
-mein-notebook --version
+notiz --version
 ```
 
 Usage:
 
 ```
-mein-notebook <cmd> [options]
+notiz <cmd> [options]
 
 Commands:
-  mein-notebook auth            Updates the database access configuration
-  mein-notebook list            List all notes
-  mein-notebook delete <id...>  Delete note(s) by ID(s) ("all" to delete all)
-  mein-notebook update <id>     Update a note
-  mein-notebook create          Create a note
+  notiz auth            Updates the database access configuration
+  notiz list            List all notes
+  notiz delete <id...>  Delete note(s) by ID(s) ("all" to delete all)
+  notiz update <id>     Update a note
+  notiz create          Create a note
 
 Options:
   --help     Show help                                                 [boolean]

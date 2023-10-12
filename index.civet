@@ -3,7 +3,6 @@ fs from node:fs/promises
 path from node:path
 
 type { ArgumentsCamelCase } from yargs
-Table from cli-table3
 yargs from yargs/yargs
 dayjs from dayjs
 * as colorette from colorette
@@ -13,7 +12,7 @@ dayjs from dayjs
 
 type { TDbCredentials } from ./drizzle.config
 { createClient } from ./lib/db/client.civet
-{ notes, SelectNote } from ./lib/db/schema
+{ notes } from ./lib/db/schema
 
 process.on 'SIGINT', ->
   stdout.write colorette.redBright 'Aborting...\n'
@@ -38,7 +37,8 @@ BANNER := colorette.magenta
           ++=*##@@@*##=:         
   :.:--#%%%%%%%%%%%%%%%%%#*--.-: 
 
-           ${colorette.italic colorette.white 'mein-notebook'}
+               ${colorette.italic colorette.white 'notiz'}
+
   `
 
 choices := ['id', 'content', 'createdAt', 'expiresAt']
@@ -211,7 +211,7 @@ create := ->
   void 0
 
 yargs hideBin argv
-  |> .scriptName 'mein-notebook'
+  |> .scriptName 'notiz'
   |> .usage '$0 <cmd> [options]'
   |> .command 'auth', 'Updates the database access configuration', ->, auth
   |> .command 'list', 'List all notes',
