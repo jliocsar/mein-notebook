@@ -175,7 +175,6 @@ update := (id?: number) ->
   catch error
     stderr.write (error as Error).message + '\n'
     exit 1
-  stdout.write '1'
   void 0
 
 create := ->
