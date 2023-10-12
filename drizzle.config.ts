@@ -10,7 +10,7 @@ export type TDbCredentials = {
 
 const dbCredentialsPath = path.resolve(
   import.meta.dir,
-  '.meine-notebook/database.json',
+  '.meine-notebook/database',
 )
 const dbCredentials = fs.readFileSync(dbCredentialsPath)
 

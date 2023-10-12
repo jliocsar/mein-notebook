@@ -22,7 +22,7 @@
   "dependencies": {
     "@danielx/civet": "latest",
     "@libsql/client": "latest",
-    "@topcli/spinner": "^2.1.2",
+    "@topcli/spinner": "latest",
     "cli-table3": "latest",
     "colorette": "latest",
     "drizzle-orm": "latest",
