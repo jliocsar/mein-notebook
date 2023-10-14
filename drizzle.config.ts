@@ -1,13 +1,20 @@
-import { stderr, exit } from 'node:process'
+import { env, stderr, exit } from 'node:process'
 import * as fs from 'node:fs'
 import * as path from 'node:path'
 
 import type { Config } from 'drizzle-kit'
+import Cryptify from 'cryptify'
 import * as C from 'colorette'
 
 export type TDbCredentials = {
   url: string
   authToken: string
+}
+
+const SECRET = env.NOTIZ_SECRET!
+if (!SECRET) {
+  stderr.write(`Env. variable ${C.blueBright('NOTIZ_SECRET')} not found.`)
+  exit(1)
 }
 
 const dbCredentialsPath = path.resolve(import.meta.dir, '.notiz/database')
@@ -19,7 +26,17 @@ if (!fs.existsSync(dbCredentialsPath)) {
   )
   exit(1)
 }
+const crypt = new Cryptify(
+  dbCredentialsPath,
+  SECRET,
+  undefined,
+  'utf-8',
+  true,
+  true,
+)
+await crypt.decrypt()
 const dbCredentials = fs.readFileSync(dbCredentialsPath)
+await crypt.encrypt()
 
 export default {
   schema: './lib/db/schema.ts',

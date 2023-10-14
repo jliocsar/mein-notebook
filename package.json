@@ -30,6 +30,7 @@
     "@topcli/spinner": "latest",
     "cli-table3": "latest",
     "colorette": "latest",
+    "cryptify": "^4.1.2",
     "dayjs": "latest",
     "drizzle-orm": "latest",
     "yargs": "latest"
