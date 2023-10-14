@@ -61,15 +61,6 @@ process.on 'SIGINT', ->
   printError 'Aborting...'
   exit 0
 
-migrate := ->
-  data .= ''
-  { stdout: migrateResult, stderr: migrateError } := spawn 'bun', ['db:migrate'], stdio: 'pipe'
-  for await error of migrateError
-    throw new Error(error.toString()) unless /^\$/.test error
-  for await chunk of migrateResult
-    data += '\n' + chunk.toString()
-  data
-
 auth := : Promise<void> ->
   return if noop
   stdout.write BANNER + '\n'
@@ -98,9 +89,7 @@ auth := : Promise<void> ->
     noop = true
     spinner.succeed '\nDatabase config saved...\n'
     printWaiting 'Applying database migration...'
-    await migrate()
-      |> .trim()
-      |> printSuccess
+    await import './lib/db/migrate.civet'
   catch error
     spinner.failed '\nFailed to write database config\n'
     printError (error as Error).message
