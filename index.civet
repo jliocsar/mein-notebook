@@ -121,7 +121,7 @@ sortByDesc := (choice: number) ->
 listAll := (args?: ArgumentsCamelCase<{ sort?: string, sortdesc?: string }>) ->
   spinner := new Spinner |> .start 'Loading notes...'
   table := new Table
-    head: ['☕ ID', '📜 Content', '🕐 Created at', '🌋 Expires at']
+    head: ['☕ ID', '📜 Note', '🕐 Created at', '🌋 Expires at']
   try
     allNotes := db!.select() |> .from notes |> await
     expired : number[] := []
