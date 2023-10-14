@@ -1,7 +1,11 @@
 {
   "name": "notiz",
+  "version": "0.0.1",
   "module": "index.civet",
   "type": "module",
+  "bin": {
+    "notiz": "./notiz.ts"
+  },
   "scripts": {
     "start": "bun run --bun index.civet",
     "transpile": "civet -c *.civet lib/db/*.civet",
@@ -10,7 +14,7 @@
     "db:transpile": "civet < lib/db/schema.civet > lib/db/schema.ts",
     "db:migrate": "bun db:transpile && bun run --bun lib/db/migrate.civet",
     "db:seed": "bun run --bun db/seed.civet",
-    "postinstall": "bun db:transpile"
+    "postinstall": "bun transpile && bun db:transpile"
   },
   "devDependencies": {
     "@types/yargs": "latest",
@@ -24,7 +28,7 @@
     "@danielx/civet": "latest",
     "@libsql/client": "latest",
     "@topcli/spinner": "latest",
-    "cli-table3": "^0.6.3",
+    "cli-table3": "latest",
     "colorette": "latest",
     "dayjs": "latest",
     "drizzle-orm": "latest",
