@@ -1,8 +1,8 @@
 <div align=center>
 
 <picture>
-  <source media="(prefers-color-scheme: dark)" srcset="./.github/white-hand.png">
-  <img alt="Logo" src="./.github/hand.png" width="196">
+  <source media="(prefers-color-scheme: dark)" srcset=https://raw.githubusercontent.com/jliocsar/notiz/main/.github/white-hand.png>
+  <img alt=Logo src=https://raw.githubusercontent.com/jliocsar/notiz/main/.github/hand.png width=196>
 </picture>
 
 # Notiz
@@ -11,13 +11,11 @@
 
 _Easy to use CLI notes manager_
 
-**Under construction 👨‍🏭**
-
 </div>
 
 ---
 
-To install **(NOT PUBLISHED)**:
+To install:
 
 ```bash
 npm i -g @jliocsar/notiz
@@ -54,4 +52,3 @@ This project was created using `bun init` in bun v1.0.4. [Bun](https://bun.sh) i
 [turso-url]: https://turso.tech/
 [civet-badge]: https://img.shields.io/badge/civet-3e63dd?style=flat-square
 [civet-url]: https://civet.dev/
-
