@@ -13,10 +13,6 @@ _Easy to use CLI notes manager_
 
 **Under construction 👨‍🏭**
 
-## TODO
-
-- [ ] Create a generate + migration part;
-
 </div>
 
 ---
