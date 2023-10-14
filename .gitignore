@@ -181,7 +181,7 @@ lib/db/schema.ts
 **/*.civet.tsx
 
 # DB credentials
-.meine-notebook
+.notiz
 
 # Temporary files
 tmp/

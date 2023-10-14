@@ -16,8 +16,10 @@ type { TDbCredentials } from ./drizzle.config
 { createClient } from ./lib/db/client.civet
 { notes } from ./lib/db/schema
 
-MEINE_NOTEBOOK_PATH := '.meine-notebook'
-DATABASE_CONFIG_PATH := path.join MEINE_NOTEBOOK_PATH, 'database'
+MEINE_NOTEBOOK_PATH := path.resolve
+  import.meta.dir
+  '.notiz'
+DATABASE_CONFIG_PATH := path.resolve MEINE_NOTEBOOK_PATH, 'database'
 BANNER := C.magenta
   `
             .   *#          ..   
@@ -55,12 +57,10 @@ process.on 'SIGINT', ->
 migrate := ->
   data .= ''
   { stdout: migrateResult, stderr: migrateError } := spawn 'bun', ['db:migrate'], stdio: 'pipe'
-  for await (const error of migrateError) {
+  for await error of migrateError
     throw new Error(error.toString()) unless /^\$/.test error
-  }
-  for await (const chunk of migrateResult) {
+  for await chunk of migrateResult
     data += '\n' + chunk.toString()
-  }
   data
 
 auth := : Promise<void> ->
