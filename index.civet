@@ -1,7 +1,6 @@
 { env, argv, stdout, stderr, exit } from node:process
 fs from node:fs/promises
 path from node:path
-{ spawn } from node:child_process
 
 type { ArgumentsCamelCase } from yargs
 yargs from yargs/yargs
@@ -21,7 +20,6 @@ printDimmed := (message: string) -> stdout.write C.dim message + '\n'
 printHeader := (message: string) -> stdout.write C.bold message + '\n'
 printWaiting := (message: string) -> stdout.write `⏳ ${message}\n`
 printWarning := (message: string) -> stdout.write `${C.bold C.yellowBright '⚠'} ${message}\n`
-printSuccess := (message: string) -> stdout.write `${C.bold C.greenBright '✔'} ${message}\n`
 printError := (message: string) -> stderr.write `${C.bold C.redBright '❌'} ${message}\n`
 
 HOME := env.HOME!
@@ -33,6 +31,7 @@ unless SECRET
 
 MEINE_NOTEBOOK_PATH := path.resolve HOME, '.notiz'
 DATABASE_CONFIG_PATH := path.resolve MEINE_NOTEBOOK_PATH, 'database'
+TABLE_HEAD := ['☕ ID', '📜 Note', '🕐 Created at', '🌋 Expires at']
 BANNER := C.magenta
   `
             .   *#          ..   
@@ -125,7 +124,7 @@ sortByDesc := (choice: number) ->
 listAll := (args?: ArgumentsCamelCase<{ sort?: string, sortdesc?: string }>) ->
   spinner := new Spinner |> .start 'Loading notes...'
   table := new Table
-    head: ['☕ ID', '📜 Note', '🕐 Created at', '🌋 Expires at']
+    head: TABLE_HEAD
   try
     allNotes := db!.select() |> .from notes |> await
     expired : number[] := []
