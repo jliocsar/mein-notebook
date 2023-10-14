@@ -257,6 +257,12 @@ create := (args?: ArgumentsCamelCase<{ note?: string[]; expires?: string }>) ->
 yargs hideBin argv
   |> .scriptName 'notiz'
   |> .usage '$0 <cmd> [options]'
+  |> .version
+    path.resolve import.meta.dir, 'package.json'
+      |> Bun.file
+      |> .json()
+      |> await
+      |> .version
   |> .command 'auth', 'Updates the database access configuration', ->, auth
   |> .command 'list', 'List all notes',
     (yargs) -> yargs

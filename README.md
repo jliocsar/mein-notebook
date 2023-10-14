@@ -15,6 +15,12 @@ _Easy to use CLI notes manager_
 
 ---
 
+## TODO
+
+- [ ] Write docs 📜
+- [ ] Write better instructions ☑️
+- [ ] Add BuyMeACoffee link ☕
+
 To install:
 
 ```bash
@@ -33,11 +39,11 @@ Usage:
 notiz <cmd> [options]
 
 Commands:
-  notiz auth            Updates the database access configuration
-  notiz list            List all notes
-  notiz delete <id...>  Delete note(s) by ID(s) ("all" to delete all)
-  notiz update <id>     Update a note
-  notiz create          Create a note
+  notiz auth              Updates the database access configuration
+  notiz list              List all notes
+  notiz delete <id...>    Delete note(s) by ID(s) ("all" to delete all)
+  notiz update <id>       Update a note
+  notiz create [note...]  Create a note
 
 Options:
   --help     Show help                                                 [boolean]
