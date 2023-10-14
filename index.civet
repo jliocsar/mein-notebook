@@ -24,18 +24,15 @@ printWarning := (message: string) -> stdout.write `${C.bold C.yellowBright '⚠'
 printSuccess := (message: string) -> stdout.write `${C.bold C.greenBright '✔'} ${message}\n`
 printError := (message: string) -> stderr.write `${C.bold C.redBright '❌'} ${message}\n`
 
+HOME := env.HOME!
 SECRET := env.NOTIZ_SECRET!
 unless SECRET
   printError `No env. variable ${C.blueBright 'NOTIZ_SECRET'} detected!`
   stdout.write 'Set it to a secret string to encrypt your database auth\n'
   exit 1
 
-MEINE_NOTEBOOK_PATH := path.resolve
-  import.meta.dir
-  '.notiz'
-DATABASE_CONFIG_PATH := path.resolve
-  MEINE_NOTEBOOK_PATH
-  'database'
+MEINE_NOTEBOOK_PATH := path.resolve HOME, '.notiz'
+DATABASE_CONFIG_PATH := path.resolve MEINE_NOTEBOOK_PATH, 'database'
 BANNER := C.magenta
   `
             .   *#          ..   

@@ -11,13 +11,14 @@ export type TDbCredentials = {
   authToken: string
 }
 
+const HOME = env.NOTIZ_HOME!
 const SECRET = env.NOTIZ_SECRET!
 if (!SECRET) {
   stderr.write(`Env. variable ${C.blueBright('NOTIZ_SECRET')} not found.`)
   exit(1)
 }
 
-const dbCredentialsPath = path.resolve(import.meta.dir, '.notiz/database')
+const dbCredentialsPath = path.resolve(HOME, '.notiz/database')
 if (!fs.existsSync(dbCredentialsPath)) {
   stderr.write(
     `Database credentials not found at ${dbCredentialsPath}. Please create them by running ${C.cyanBright(
