@@ -3,9 +3,10 @@ path from node:path
 
 { migrate } from drizzle-orm/libsql/migrator
 
-{ db } from ./client.civet
+{ createClient } from ./client.civet
 
 try
+  { db } := await createClient()
   migrate db,
     migrationsFolder: path.resolve(import.meta.dir, 'migrations')
   |> await

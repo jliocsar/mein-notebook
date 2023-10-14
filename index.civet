@@ -1,11 +1,12 @@
 { argv, stdout, stderr, exit } from node:process
 fs from node:fs/promises
 path from node:path
+{ spawn } from node:child_process
 
 type { ArgumentsCamelCase } from yargs
 yargs from yargs/yargs
 dayjs from dayjs
-* as colorette from colorette
+* as C from colorette
 { Spinner } from @topcli/spinner
 { hideBin } from yargs/helpers
 { eq, inArray } from drizzle-orm
@@ -14,13 +15,9 @@ type { TDbCredentials } from ./drizzle.config
 { createClient } from ./lib/db/client.civet
 { notes } from ./lib/db/schema
 
-process.on 'SIGINT', ->
-  stdout.write colorette.redBright 'Aborting...\n'
-  exit 0
-
 MEINE_NOTEBOOK_PATH := '.meine-notebook'
 DATABASE_CONFIG_PATH := path.join MEINE_NOTEBOOK_PATH, 'database'
-BANNER := colorette.magenta
+BANNER := C.magenta
   `
             .   *#          ..   
     :--     -@*  @@  .:     =---  
@@ -37,25 +34,45 @@ BANNER := colorette.magenta
           ++=*##@@@*##=:         
   :.:--#%%%%%%%%%%%%%%%%%#*--.-: 
 
-               ${colorette.italic colorette.white 'notiz'}
+               ${C.italic C.white 'notiz'}
 
   `
 
+printDimmed := (message: string) -> stdout.write C.dim message + '\n'
+printHeader := (message: string) -> stdout.write C.bold message + '\n'
+printWaiting := (message: string) -> stdout.write `⏳ ${message}\n`
+printWarning := (message: string) -> stdout.write `${C.bold C.yellowBright '⚠'} ${message}\n`
+printSuccess := (message: string) -> stdout.write `${C.bold C.greenBright '✔'} ${message}\n`
+printError := (message: string) -> stderr.write `${C.bold C.redBright '❌'} ${message}\n`
 choices := ['id', 'content', 'createdAt', 'expiresAt']
 noop : boolean .= false
+
+process.on 'SIGINT', ->
+  printError 'Aborting...'
+  exit 0
+
+migrate := ->
+  data .= ''
+  { stdout: migrateResult, stderr: migrateError } := spawn 'bun', ['db:migrate'], stdio: 'pipe'
+  for await (const error of migrateError) {
+    throw new Error(error.toString()) unless /^\$/.test error
+  }
+  for await (const chunk of migrateResult) {
+    data += '\n' + chunk.toString()
+  }
+  data
 
 auth := : Promise<void> ->
   return if noop
   stdout.write BANNER + '\n'
-  stdout.write colorette.yellowBright 'WARN!\n'
+  printWarning 'WARN!'
   stdout.write 'No database config found, asking for one...\n\n'
-
-  stdout.write colorette.dim 'URL of the database:\n'
+  printDimmed 'URL of the database:'
   url := readStdin() |> await
-  stdout.write colorette.dim '\nDatabase auth token:\n'
+  printDimmed '\nDatabase auth token:'
   authToken := readStdin() |> await
   spinner := new Spinner
-    |> .start colorette.cyanBright 'Writing database auth...'
+    |> .start C.cyanBright 'Writing database auth...'
 
   try
     unless await fs.exists MEINE_NOTEBOOK_PATH
@@ -63,10 +80,14 @@ auth := : Promise<void> ->
     data := { url, authToken } as TDbCredentials |> JSON.stringify
     await Bun.write DATABASE_CONFIG_PATH, data
     noop = true
-    spinner.succeed '\nDatabase authenticated...\n'
+    spinner.succeed '\nDatabase config saved...\n'
+    printWaiting 'Applying database migration...'
+    await migrate()
+      |> .trim()
+      |> printSuccess
   catch error
     spinner.failed '\nFailed to write database config\n'
-    stderr.write (error as Error).message + '\n'
+    printError (error as Error).message
     await fs.rm MEINE_NOTEBOOK_PATH, recursive: true
     exit 1
 
@@ -84,13 +105,15 @@ readStdin := ->
 
 sortBy := (choice: number) ->
   (orig: any, comp: any) ->
-    unless orig[choice] and comp[choice] then 0
+    unless orig[choice] and comp[choice]
+      0
     else
       orig[choice]! > comp[choice]! ? 1 : -1
 
 sortByDesc := (choice: number) ->
   (orig: any, comp: any) ->
-    unless orig[choice] and comp[choice] then 0
+    unless orig[choice] and comp[choice]
+      0
     else
       orig[choice]! < comp[choice]! ? 1 : -1
 
@@ -98,7 +121,7 @@ listAll := (args?: ArgumentsCamelCase<{ sort?: string, sortdesc?: string }>) ->
   spinner := new Spinner |> .start 'Loading notes...'
   try
     allNotes := db!.select() |> .from notes |> await
-    spinner.succeed colorette.bold 'Notes:'
+    spinner.succeed C.bold 'Notes:'
     expired : number[] := []
     rows .= []
     for { id, content, createdAt, expiresAt } of allNotes
@@ -113,7 +136,7 @@ listAll := (args?: ArgumentsCamelCase<{ sort?: string, sortdesc?: string }>) ->
           expiresAt: expiresAt?.toLocaleString()
         }
     unless expired.length is 0
-      stdout.write colorette.cyanBright 'Some notes have expired\n'
+      printWarning 'Some notes have expired'
       await deleteByIds expired
     sort := args?.sort or args?.sortdesc
     isDescending := args?.sortdesc is sort
@@ -123,21 +146,21 @@ listAll := (args?: ArgumentsCamelCase<{ sort?: string, sortdesc?: string }>) ->
     rows
       |> .map (row) ->
         `
-${colorette.bold colorette.greenBright 'ID' }: ${colorette.bold row.id} ${colorette.dim '|'} 📅 ${row.createdAt} ${row.expiresAt ? `${colorette.dim '|'} 🕒 ${row.expiresAt}` : ''}
+${C.bold C.greenBright 'ID' }: ${C.bold row.id} ${C.dim '|'} ${C.bold 'C'}: ${row.createdAt} ${row.expiresAt ? `${C.dim '|'} ${C.bold 'E'}: ${row.expiresAt}` : ''}
 
 ${row.content}
 `
-      |> .join colorette.dim '_______________________________________________________________\n'
+      |> .join C.dim '_______________________________________________________________\n'
       |> stdout.write
   catch error
     spinner.failed 'Failed to load notes'
-    stderr.write (error as Error).message + '\n'
+    printError (error as Error).message
     exit 1
   void 0
 
 deleteByIds := (ids?: (string | number)[]) ->
   unless ids
-    stderr.write 'No note ID entered\n'
+    printError 'No note ID entered'
     exit 1
   try
     shouldDeleteAll := ids.length is 1
@@ -152,18 +175,18 @@ deleteByIds := (ids?: (string | number)[]) ->
     unless shouldDeleteAll
       listAll()
   catch error
-    stderr.write (error as Error).message + '\n'
+    printError (error as Error).message
     exit 1
   void 0
 
 update := (id?: number) ->
   unless id
-    stderr.write 'No note ID entered\n'
+    printError 'No note ID entered'
     exit 1
-  stdout.write 'Enter note update: \n'
+  printHeader 'Enter note update:'
   content := readStdin() |> await
   unless content
-    stderr.write 'No note entered\n'
+    printError 'No note entered'
     exit 1
   try
     db!.update notes
@@ -173,14 +196,14 @@ update := (id?: number) ->
       |> await
     listAll()
   catch error
-    stderr.write (error as Error).message + '\n'
+    printError (error as Error).message
     exit 1
   void 0
 
 create := ->
-  stdout.write colorette.bold 'Enter note: \n'
+  printHeader 'Enter note:'
   content := readStdin() |> await
-  stdout.write colorette.bold '\nExpires at: \n'
+  printHeader '\nExpires at:'
   createdAt := dayjs()
   expiresAt := readStdin()
     |> await |> (val) ->
@@ -194,7 +217,7 @@ create := ->
         Number time
         period as dayjs.ManipulateType
   unless content  
-    stderr.write 'No note entered\n'
+    printError 'No note entered'
     exit 1
   try
     db!.insert notes
@@ -206,7 +229,7 @@ create := ->
       |> await
     listAll()
   catch error
-    stderr.write (error as Error).message + '\n'
+    printError (error as Error).message
     exit 1
   void 0
 
