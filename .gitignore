@@ -179,6 +179,7 @@ lib/db/schema.ts
 
 # Transpiled files
 **/*.civet.tsx
+**/*.civet.jsx
 
 # DB credentials
 .notiz
