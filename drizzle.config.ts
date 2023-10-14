@@ -11,7 +11,7 @@ export type TDbCredentials = {
   authToken: string
 }
 
-const HOME = env.NOTIZ_HOME!
+const HOME = env.HOME!
 const SECRET = env.NOTIZ_SECRET!
 if (!SECRET) {
   stderr.write(`Env. variable ${C.blueBright('NOTIZ_SECRET')} not found.`)
