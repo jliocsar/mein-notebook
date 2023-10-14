@@ -1,5 +1,5 @@
 {
-  "name": "notiz",
+  "name": "@jliocsar/notiz",
   "version": "0.0.1",
   "module": "index.civet",
   "type": "module",
