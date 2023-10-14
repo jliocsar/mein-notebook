@@ -18,7 +18,7 @@ _Easy to use CLI notes manager_
 To install:
 
 ```bash
-npm i -g @jliocsar/notiz
+npm i -g @jliocsar/notiz-cli
 ```
 
 To run:
