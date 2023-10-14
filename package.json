@@ -24,6 +24,7 @@
     "@danielx/civet": "latest",
     "@libsql/client": "latest",
     "@topcli/spinner": "latest",
+    "cli-table3": "^0.6.3",
     "colorette": "latest",
     "dayjs": "latest",
     "drizzle-orm": "latest",

@@ -6,6 +6,7 @@ path from node:path
 type { ArgumentsCamelCase } from yargs
 yargs from yargs/yargs
 dayjs from dayjs
+Table from cli-table3
 * as C from colorette
 { Spinner } from @topcli/spinner
 { hideBin } from yargs/helpers
@@ -101,7 +102,7 @@ readStdin := ->
   for await chunk of Bun.stdin.stream()
     if chunk
       return chunk |> Buffer.from |> .toString().trim()
-  null
+  void 0
 
 sortBy := (choice: number) ->
   (orig: any, comp: any) ->
@@ -119,9 +120,10 @@ sortByDesc := (choice: number) ->
 
 listAll := (args?: ArgumentsCamelCase<{ sort?: string, sortdesc?: string }>) ->
   spinner := new Spinner |> .start 'Loading notes...'
+  table := new Table
+    head: ['☕ ID', '📜 Content', '🕐 Created at', '🌋 Expires at']
   try
     allNotes := db!.select() |> .from notes |> await
-    spinner.succeed C.bold 'Notes:'
     expired : number[] := []
     rows .= []
     for { id, content, createdAt, expiresAt } of allNotes
@@ -129,12 +131,12 @@ listAll := (args?: ArgumentsCamelCase<{ sort?: string, sortdesc?: string }>) ->
       if hasExpired
         expired.push id
       else
-        rows.push {
+        rows.push [
           id
           content
-          createdAt: createdAt.toLocaleString()
-          expiresAt: expiresAt?.toLocaleString()
-        }
+          createdAt.toLocaleString()
+          expiresAt?.toLocaleString() ?? '-'
+        ]
     unless expired.length is 0
       printWarning 'Some notes have expired'
       await deleteByIds expired
@@ -143,14 +145,13 @@ listAll := (args?: ArgumentsCamelCase<{ sort?: string, sortdesc?: string }>) ->
     if sort and sort is in choices
       choice := choices.indexOf sort
       rows = (isDescending ? sortByDesc : sortBy) choice |> rows.sort
-    rows
-      |> .map (row) ->
-        `
-${C.bold C.greenBright 'ID' }: ${C.bold row.id} ${C.dim '|'} ${C.bold 'C'}: ${row.createdAt} ${row.expiresAt ? `${C.dim '|'} ${C.bold 'E'}: ${row.expiresAt}` : ''}
-
-${row.content}
-`
-      |> .join C.dim '_______________________________________________________________\n'
+    if rows.length is 0
+      spinner.succeed C.bold 'No notes found'
+      exit 0
+    spinner.succeed C.bold 'Notes:'
+    table
+      ||> .push ...rows
+      |> .toString() + '\n'
       |> stdout.write
   catch error
     spinner.failed 'Failed to load notes'
@@ -196,26 +197,36 @@ update := (id?: number) ->
       |> await
     listAll()
   catch error
-    printError (error as Error).message
+    switch (error as Error).message
+      /UNIQUE constraint/
+        printError 'Note already exists'
+      else
+        printError (error as Error).message
     exit 1
   void 0
 
-create := ->
-  printHeader 'Enter note:'
-  content := readStdin() |> await
-  printHeader '\nExpires at:'
+create := (args?: ArgumentsCamelCase<{ note?: string[]; expires?: string }>) ->
   createdAt := dayjs()
-  expiresAt := readStdin()
-    |> await |> (val) ->
-      unless val
-        return null
-      [time, rawPeriod] := val!.split ' '
-      unless rawPeriod
-        return null
-      period := rawPeriod.replace /s$/, ''
-      createdAt.add
-        Number time
-        period as dayjs.ManipulateType
+  expiresAt .= null
+  content := switch args?.note
+    []
+      printHeader 'Note content:'
+      input := await readStdin()
+      printHeader '\nExpires at:'
+      expiresAt = readStdin()
+        |> await |> (val) ->
+          unless val
+            return null
+          [time, rawPeriod] := val!.split ' '
+          unless rawPeriod
+            return null
+          period := rawPeriod.replace /s$/, ''
+          createdAt.add
+            Number time
+            period as dayjs.ManipulateType
+      input
+    [...items]
+      items.join ' '
   unless content  
     printError 'No note entered'
     exit 1
@@ -224,12 +235,19 @@ create := ->
       |> .values {
           content,
           createdAt: createdAt.toDate(),
-          expiresAt: expiresAt?.toDate()
+          // @ts-expect-error - ts doesn't know js
+          ...(expiresAt && {
+            expiresAt: (expiresAt as dayjs.Dayjs).toDate()
+          })
         }
       |> await
     listAll()
   catch error
-    printError (error as Error).message
+    switch (error as Error).message
+      /UNIQUE constraint/
+        printError 'Note already exists'
+      else
+        printError (error as Error).message
     exit 1
   void 0
 
@@ -258,7 +276,10 @@ yargs hideBin argv
     (yargs) -> yargs
       |> .positional 'id', { describe: 'Note id', type: 'number' }
     (args) -> update args.id
-  |> .command 'create', 'Create a note', ->, create
+  |> .command 'create [note...]', 'Create a note',
+    (yargs) -> yargs
+      |> .positional 'note', { describe: 'Note content', type: 'string', required: false, array: true }
+    create
   |> .demandCommand 1
   |> .recommendCommands()
   |> .argv
