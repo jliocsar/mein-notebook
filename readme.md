@@ -29,7 +29,7 @@ Notiz ships a setup script to facilitate the whole process of installing the too
 **IN PROGRESS**
 
 ```sh
-curl ... && ./install
+curl ... && ./install.ts
 ```
 
 It will automagically create your [Turso][turso-url] database and copy the URL/Auth Token to the `~/.notiz` folder, so you won't have to worry with anything but input your notes!

@@ -1,11 +1,11 @@
 {
   "name": "@jliocsar/notiz-cli",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "main": "notiz.ts",
   "type": "module",
   "bin": {
-    "notiz": "./notiz",
-    "notiz.setup": "./install"
+    "notiz": "./notiz.ts",
+    "notiz.setup": "./install.ts"
   },
   "scripts": {
     "start": "bun run --bun index.civet",
