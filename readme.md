@@ -89,10 +89,6 @@ bun transpile
 > **Note**
 > The database credentials used in development are the same from your usual Notiz command (store as an encrypted file in `~/.notiz/database`), so keep that in mind!
 
-## TODO
-
-- [ ] Add BuyMeACoffee link ☕
-
 ## Usage
 
 ```
