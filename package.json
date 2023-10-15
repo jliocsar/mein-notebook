@@ -1,14 +1,15 @@
 {
   "name": "@jliocsar/notiz-cli",
-  "version": "0.0.8",
+  "version": "0.1.0",
   "main": "notiz.ts",
   "type": "module",
   "bin": {
-    "notiz": "./notiz.ts"
+    "notiz": "./notiz",
+    "notiz.setup": "./install"
   },
   "scripts": {
     "start": "bun run --bun index.civet",
-    "transpile": "civet -c *.civet lib/db/*.civet && sed -i 's/.civet/.civet.tsx/g' *.tsx lib/db/*.tsx",
+    "transpile": "civet -c *.civet lib/*.civet lib/db/*.civet && sed -i 's/.civet/.civet.tsx/g' *.tsx lib/*.tsx lib/db/*.tsx",
     "db:studio": "drizzle-kit studio --port 3333",
     "db:generate": "drizzle-kit generate:sqlite",
     "db:transpile": "civet < lib/db/schema.civet > lib/db/schema.ts",

@@ -1,6 +1,51 @@
+{ stdout, argv } from node:process
+{ spawnSync } from node:child_process
+
+* as C from colorette
+
+{ Auth } from ./lib/auth.civet
 { upgrade } from ./upgrade.civet
 
-// TODO flow:
-// - Turso configuration (create db, tokens etc)
-// - Run migrations
-// - Upgrade CLI tool
+[,, dbName = 'notiz'] := argv
+
+if showTursoDbUrl()
+  stdout.write C.bold C.redBright 'Error: '
+  stdout.write `Database ${dbName} already exists! Delete it to run this command.\n`
+  process.exit 1
+
+createTursoDb := ->
+  stdout.write `Using${dbName is 'turso' ? ' default' : ''} database name: ${C.bold C.greenBright dbName}\n`
+  spawnSync 'turso', ['db', 'create', dbName], stdio: 'inherit'
+
+createTursoDbToken := ->
+  spawnSync('turso', ['db', 'tokens', 'create', dbName], stdio: 'pipe')
+    |> .stdout
+    |> .toString().trim()
+
+showTursoDbUrl := ->
+  spawnSync('turso', ['db', 'show', '--url', dbName], stdio: 'pipe')
+    |> .stdout
+    |> .toString().trim()
+
+stdout.write 'Upgrading Notiz to latest version...\n'
+upgrade()
+
+stdout.write `Running ${C.bold C.cyanBright 'Turso'} configuration\n`
+stdout.write 'Creating database...\n'
+createTursoDb()
+
+stdout.write 'Creating a database token...\n'
+authToken := createTursoDbToken()
+
+stdout.write 'Storing database credentials...\n'
+url := showTursoDbUrl()
+
+authInstance := new Auth url, authToken
+await authInstance.createDbCredentials()
+
+stdout.write 'Running database migrations...\n'
+await import './lib/db/migrate.civet'
+
+stdout.write C.bold C.greenBright 'Done!\n'
+
+spawnSync 'notiz', ['list'], stdio: 'inherit'

@@ -1,0 +1,30 @@
+path from node:path
+{ env } from node:process
+
+* as C from colorette
+
+export HOME := env.HOME!
+export SECRET := env.NOTIZ_SECRET!
+export MEINE_NOTEBOOK_PATH := path.resolve HOME, '.notiz'
+export DATABASE_CONFIG_PATH := path.resolve MEINE_NOTEBOOK_PATH, 'database'
+export TABLE_HEAD := ['☕ ID', '📜 Note', '🕐 Created at', '🌋 Expires at']
+export BANNER := C.magenta
+  `
+            .   *#          ..   
+    :--     -@*  @@  .:     =---  
+    =-=.    +@#  @@  =@+     ::   
+            =@# :@%  #@= +.       
+            @@#%@@+%@# -@+       
+        --   +@@@@@@@@@%@#        
+        #@*. =@@@@@@@@@@#         
+        *@@@@@@@@@@@@@@          
+          =#@@@@@@@@@@=          
+    ..:     -%@@@@@@@*           
+    .:-      .@@@@@@.   .-+      
+              .@@#*#@             
+          ++=*##@@@*##=:         
+  :.:--#%%%%%%%%%%%%%%%%%#*--.-: 
+
+               ${C.italic C.white 'notiz'}
+
+  `

@@ -1,0 +1,20 @@
+fs from node:fs
+
+Cryptify from cryptify
+
+{ MEINE_NOTEBOOK_PATH, DATABASE_CONFIG_PATH, SECRET } from ./const.civet
+
+export class Auth
+  @(private url: string, private authToken: string)
+
+  createDbCredentials()
+    try
+      unless fs.existsSync MEINE_NOTEBOOK_PATH
+        fs.mkdirSync MEINE_NOTEBOOK_PATH
+      data := { @url, @authToken } |> JSON.stringify
+      await Bun.write DATABASE_CONFIG_PATH, data
+      crypt := new Cryptify DATABASE_CONFIG_PATH, SECRET, undefined, 'utf-8', true, true
+      await crypt.encrypt()
+    catch error
+      fs.rmSync MEINE_NOTEBOOK_PATH, recursive: true
+      throw error

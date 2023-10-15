@@ -1,21 +1,26 @@
-{ env, argv, stdout, stderr, exit } from node:process
-fs from node:fs/promises
+{ argv, stdout, stderr, exit } from node:process
+fs from node:fs
 path from node:path
 
 type { ArgumentsCamelCase } from yargs
 yargs from yargs/yargs
 dayjs from dayjs
 Table from cli-table3
-Cryptify from cryptify
 * as C from colorette
 { Spinner } from @topcli/spinner
 { hideBin } from yargs/helpers
 { eq, inArray } from drizzle-orm
 
-type { TDbCredentials } from ./drizzle.config
 { upgrade } from ./upgrade.civet
 { createClient } from ./lib/db/client.civet
+{ Auth } from ./lib/auth.civet
 { notes } from ./lib/db/schema
+{
+  SECRET
+  DATABASE_CONFIG_PATH
+  TABLE_HEAD
+  BANNER
+} from ./lib/const.civet
 
 printDimmed := (message: string) -> stdout.write C.dim message + '\n'
 printHeader := (message: string) -> stdout.write C.bold message + '\n'
@@ -23,36 +28,10 @@ printWaiting := (message: string) -> stdout.write `⏳ ${message}\n`
 printWarning := (message: string) -> stdout.write `${C.bold C.yellowBright '⚠'} ${message}\n`
 printError := (message: string) -> stderr.write `${C.bold C.redBright '❌'} ${message}\n`
 
-HOME := env.HOME!
-SECRET := env.NOTIZ_SECRET!
 unless SECRET
   printError `No env. variable ${C.blueBright 'NOTIZ_SECRET'} detected!`
   stdout.write 'Set it to a secret string to encrypt your database auth\n'
   exit 1
-
-MEINE_NOTEBOOK_PATH := path.resolve HOME, '.notiz'
-DATABASE_CONFIG_PATH := path.resolve MEINE_NOTEBOOK_PATH, 'database'
-TABLE_HEAD := ['☕ ID', '📜 Note', '🕐 Created at', '🌋 Expires at']
-BANNER := C.magenta
-  `
-            .   *#          ..   
-    :--     -@*  @@  .:     =---  
-    =-=.    +@#  @@  =@+     ::   
-            =@# :@%  #@= +.       
-            @@#%@@+%@# -@+       
-        --   +@@@@@@@@@%@#        
-        #@*. =@@@@@@@@@@#         
-        *@@@@@@@@@@@@@@          
-          =#@@@@@@@@@@=          
-    ..:     -%@@@@@@@*           
-    .:-      .@@@@@@.   .-+      
-              .@@#*#@             
-          ++=*##@@@*##=:         
-  :.:--#%%%%%%%%%%%%%%%%%#*--.-: 
-
-               ${C.italic C.white 'notiz'}
-
-  `
 
 choices := ['id', 'content', 'createdAt', 'expiresAt']
 noop : boolean .= false
@@ -80,12 +59,8 @@ auth := : Promise<void> ->
     |> .start C.cyanBright 'Writing database auth...'
 
   try
-    unless await fs.exists MEINE_NOTEBOOK_PATH
-      await fs.mkdir MEINE_NOTEBOOK_PATH
-    data := { url, authToken } as TDbCredentials |> JSON.stringify
-    await Bun.write DATABASE_CONFIG_PATH, data
-    crypt := new Cryptify DATABASE_CONFIG_PATH, SECRET, undefined, 'utf-8', true, true
-    await crypt.encrypt()
+    instance := new Auth url, authToken
+    await instance.createDbCredentials()
     noop = true
     spinner.succeed '\nDatabase config saved...\n'
     printWaiting 'Applying database migration...'
@@ -93,10 +68,9 @@ auth := : Promise<void> ->
   catch error
     spinner.failed '\nFailed to write database config\n'
     printError (error as Error).message
-    await fs.rm MEINE_NOTEBOOK_PATH, recursive: true
     exit 1
 
-if not await fs.exists DATABASE_CONFIG_PATH
+if not fs.existsSync DATABASE_CONFIG_PATH
   await auth()
 
 db := unless 'auth' is in argv

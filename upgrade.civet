@@ -1,7 +1,9 @@
-{ stdout, stderr, exit } from node:process
+{ stdout } from node:process
 { spawnSync } from node:child_process
 
-export upgrade := ->
-  spawnSync 'bun', ['add', '-g', '@jliocsar/notiz-cli'], stdio: 'inherit'
-  void 0
+{ BANNER } from ./lib/const.civet
 
+export upgrade := ->
+  stdout.write BANNER + '\n'
+  spawnSync 'npm', ['i', '-g', '@jliocsar/notiz-cli@latest'], stdio: 'inherit'
+  void 0
