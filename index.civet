@@ -13,6 +13,7 @@ Cryptify from cryptify
 { eq, inArray } from drizzle-orm
 
 type { TDbCredentials } from ./drizzle.config
+{ upgrade } from ./upgrade.civet
 { createClient } from ./lib/db/client.civet
 { notes } from ./lib/db/schema
 
@@ -263,6 +264,7 @@ yargs hideBin argv
       |> .json()
       |> await
       |> .version
+  |> .command 'upgrade', 'Upgrades the command to its latest version', ->, upgrade
   |> .command 'auth', 'Updates the database access configuration', ->, auth
   |> .command 'list', 'List all notes',
     (yargs) -> yargs

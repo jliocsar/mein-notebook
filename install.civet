@@ -1,0 +1,6 @@
+{ upgrade } from ./upgrade.civet
+
+// TODO flow:
+// - Turso configuration (create db, tokens etc)
+// - Run migrations
+// - Upgrade CLI tool
