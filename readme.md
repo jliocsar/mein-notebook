@@ -26,6 +26,8 @@ _Easy to use CLI notes manager_
 
 Notiz ships a setup script to facilitate the whole process of installing the tool.
 
+**IN PROGRESS**
+
 ```sh
 curl ... && ./install
 ```
