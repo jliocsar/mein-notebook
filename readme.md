@@ -24,12 +24,15 @@ _Easy to use CLI notes manager_
 
 ### Script
 
-Notiz ships a setup script to facilitate the whole process of installing the tool.
+> *Warn*
+> If you've previously installed Notiz and/or you already have a database setup, read the `Manual` section below.
+
+Notiz ships a setup script to facilitate the whole process of installing the tool for the first time.
 
 **IN PROGRESS**
 
 ```sh
-curl ... && ./install.ts
+curl -fsSL https://raw.githubusercontent.com/jliocsar/notiz/main/install.sh | bash
 ```
 
 It will automagically create your [Turso][turso-url] database and copy the URL/Auth Token to the `~/.notiz` folder, so you won't have to worry with anything but input your notes!
