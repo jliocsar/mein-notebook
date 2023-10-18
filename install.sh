@@ -4,6 +4,6 @@ fi
 
 cd /tmp/notiz
 bun i
-./setup.ts >/dev/null
+./setup.ts
 cd $HOME
 rm -rf /tmp/notiz
