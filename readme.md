@@ -18,13 +18,14 @@ _Easy to use CLI notes manager_
 ## Requirements
 
 - [Bun][bun-url] 1.0.0 or above;
-- [Turso](https://github.com/tursodatabase/turso-cli) CLI.
+- [Turso](https://github.com/tursodatabase/turso-cli) CLI;
+- Git.
 
 ## Installation
 
 ### Script
 
-> *Important*
+> **Important**
 >
 > If you've previously installed Notiz and/or you already have a database setup, read the `Manual` section below.
 
@@ -209,6 +210,10 @@ Updates the database access configuration
 Options:
   --help     Show help                                                 [boolean]
 ```
+
+## TODO
+
+- [ ] Write docs using GH's Wiki.
 
 ## Contributing
 
