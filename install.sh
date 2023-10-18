@@ -4,6 +4,6 @@ fi
 
 cd /tmp/notiz
 bun i && bun transpile
-./setup.ts
+./setup.ts >/dev/null
 cd $HOME
 rm -rf /tmp/notiz
