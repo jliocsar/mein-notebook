@@ -3,7 +3,7 @@ if [ ! -d /tmp/notiz ]; then
 fi
 
 cd /tmp/notiz
-bun i
+bun i && bun transpile
 ./setup.ts
 cd $HOME
 rm -rf /tmp/notiz
