@@ -29,7 +29,7 @@
     "@danielx/civet": "latest",
     "@libsql/client": "latest",
     "@topcli/spinner": "latest",
-    "cli-table3": "latest",
+    "cli-markdown": "latest",
     "colorette": "latest",
     "cryptify": "latest",
     "dayjs": "latest",

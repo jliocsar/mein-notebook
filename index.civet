@@ -5,7 +5,8 @@ path from node:path
 type { ArgumentsCamelCase } from yargs
 yargs from yargs/yargs
 dayjs from dayjs
-Table from cli-table3
+// @ts-expect-error - no types
+cliMd from cli-markdown
 * as C from colorette
 { Spinner } from @topcli/spinner
 { hideBin } from yargs/helpers
@@ -18,7 +19,6 @@ Table from cli-table3
 {
   SECRET
   DATABASE_CONFIG_PATH
-  TABLE_HEAD
   BANNER
 } from ./lib/const.civet
 
@@ -82,24 +82,23 @@ readStdin := ->
       return chunk |> Buffer.from |> .toString().trim()
   void 0
 
-sortBy := (choice: number) ->
+sortBy := (field: string) ->
   (orig: any, comp: any) ->
-    unless orig[choice] and comp[choice]
+    unless orig[field] and comp[field]
       0
     else
-      orig[choice]! > comp[choice]! ? 1 : -1
+      orig[field]! > comp[field]! ? 1 : -1
 
-sortByDesc := (choice: number) ->
+sortByDesc := (field: string) ->
   (orig: any, comp: any) ->
-    unless orig[choice] and comp[choice]
+    unless orig[field] and comp[field]
       0
     else
-      orig[choice]! < comp[choice]! ? 1 : -1
+      orig[field]! < comp[field]! ? 1 : -1
 
 listAll := (args?: ArgumentsCamelCase<{ sort?: string, sortdesc?: string }>) ->
   spinner := new Spinner |> .start 'Loading notes...'
-  table := new Table
-    head: TABLE_HEAD
+  markdown .= ''
   try
     allNotes := db!.select() |> .from notes |> await
     expired : number[] := []
@@ -109,32 +108,38 @@ listAll := (args?: ArgumentsCamelCase<{ sort?: string, sortdesc?: string }>) ->
       if hasExpired
         expired.push id
       else
-        rows.push [
+        rows.push {
           id
           content
-          createdAt.toLocaleString()
-          expiresAt?.toLocaleString() ?? '-'
-        ]
+          createdAt: createdAt.toLocaleString()
+          expiresAt: expiresAt?.toLocaleString() ?? ''
+        }
     unless expired.length is 0
       printWarning 'Some notes have expired'
       await deleteByIds expired
     sort := args?.sort or args?.sortdesc
     isDescending := args?.sortdesc is sort
     if sort and sort is in choices
-      choice := choices.indexOf sort
-      rows = (isDescending ? sortByDesc : sortBy) choice |> rows.sort
-    if rows.length is 0
+      rows = (isDescending ? sortByDesc : sortBy) sort |> rows.sort
+    length := rows.length
+    unless length
       spinner.succeed C.bold 'No notes found'
       exit 0
     spinner.succeed C.bold 'Notes:'
-    table
-      ||> .push ...rows
-      |> .toString() + '\n'
-      |> stdout.write
+    for { id, content, createdAt, expiresAt }, index of rows
+      markdown += `# ${id}
+
+${content}
+
+${`> Created at ${createdAt.toLocaleString()}`}
+
+${expiresAt ? `> Expires at ${expiresAt}` : ''}
+${index < length - 1 ? '---\n' : ''}`
   catch error
     spinner.failed 'Failed to load notes'
     printError (error as Error).message
     exit 1
+  stdout.write cliMd markdown
   void 0
 
 deleteByIds := (ids?: (string | number)[]) ->
