@@ -15,6 +15,14 @@ _Easy to use CLI notes manager_
 
 ---
 
+## Description
+
+Notiz is a CLI notes manager.
+
+It outputs notes in markdown format, meaning you can add tables, code snippet with syntax highlight, URLs and much more to notes that are displayed directly in your terminal.
+
+All notes are stored in your own [Turso][turso-url] instance: your data is yours.
+
 ## Requirements
 
 - [Bun][bun-url] 1.0.0 or above;
