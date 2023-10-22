@@ -20,9 +20,13 @@ cliMd from cli-markdown
   BANNER
   DATABASE_CONFIG_PATH
   EDITOR
+  OPTIONS_FILE
   SECRET
   TMP_FILE_NAME
 } from ./lib/const.civet
+
+type NotizOptions
+  editor: string
 
 printDimmed := (message: string) -> stdout.write C.dim message + '\n'
 printSuccess := (message: string) -> stdout.write `${C.bold C.greenBright '✓'} ${message}\n`
@@ -97,6 +101,15 @@ sortByDesc := (field: string) ->
     else
       orig[field]! < comp[field]! ? 1 : -1
 
+openOnEditor := (initialBuffer = '') ->
+  await Bun.write TMP_FILE_NAME, initialBuffer
+  editor := spawnSync EDITOR, ['-n', TMP_FILE_NAME], stdio: 'inherit'
+  if editor.status
+    printError 'Failed to open editor'
+  Bun.file TMP_FILE_NAME
+    |> .text()
+    |> await
+
 formatExpiresAt := (createdAt: dayjs.Dayjs, expires: string) ->
   [time, rawPeriod] := expires
     |> .split /^(\d+)\s*(\w+)$/
@@ -109,6 +122,18 @@ formatExpiresAt := (createdAt: dayjs.Dayjs, expires: string) ->
       Number time
       period as dayjs.ManipulateType
     |> .toDate()
+
+configure := (args?: ArgumentsCamelCase<{ option?: 'editor' | (string & {}), value?: string }>) ->
+  unless args?.option and args?.value
+    printError 'No option or value entered'
+    exit 1
+  currentOptions : NotizOptions := OPTIONS_FILE
+    |> .json()
+    |> await
+  currentOptions[args.option as keyof NotizOptions] = args.value
+  printSuccess `Option "${args.option}" configured`
+  await Bun.write OPTIONS_FILE, JSON.stringify currentOptions
+  void 0
 
 listAll := (args?: ArgumentsCamelCase<{ sort?: string, sortdesc?: string }>) ->
   printInfo 'Loading notes...'
@@ -213,15 +238,6 @@ update := (args?: ArgumentsCamelCase<{ id?: number; expires?: string }>) ->
     exit 1
   void 0
 
-openOnEditor := (initialBuffer = '') ->
-  await Bun.write TMP_FILE_NAME, initialBuffer
-  editor := spawnSync EDITOR, ['-n', TMP_FILE_NAME], stdio: 'inherit'
-  if editor.status
-    printError 'Failed to open editor'
-  Bun.file TMP_FILE_NAME
-    |> .text()
-    |> await
-
 create := (args?: ArgumentsCamelCase<{ note?: string[]; expires?: string }>) ->
   createdAt := dayjs()
   expiresAt .= null
@@ -263,6 +279,15 @@ yargs hideBin argv
       |> .version
   |> .command 'upgrade', 'Upgrades the command to its latest version', ->, upgrade
   |> .command 'auth', 'Updates the database access configuration', ->, auth
+  |> .command 'configure <option> <value>', 'Configures the CLI options',
+    (yargs) -> yargs
+      |> .positional 'option', {
+          choices: ['editor']
+          describe: 'Option to configure'
+          type: 'string'
+        }
+      |> .positional 'value', { describe: 'Value to set the option to', type: 'string' }
+    configure
   |> .command 'list', 'List all notes',
     (yargs) -> yargs
       |> .option 'sort', {

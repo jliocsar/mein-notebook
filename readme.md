@@ -119,8 +119,8 @@ Options:
 
 > **Important**
 >
-> The default editor used by Notiz is defined by your `EDITOR` env. variable.
-> If it's not present, Notiz will use [`nvim`][nvim-url] by default.
+> The default editor used by Notiz is defined by the `notiz configure editor` command, or by the `VISUAL` or `EDITOR` env. variables.
+> If neither are present, Notiz will use [`nvim`][nvim-url] by default.
 
 ### List
 
@@ -193,6 +193,24 @@ Positionals:
 
 Options:
   --help     Show help                                                 [boolean]
+```
+
+### Configure
+
+Configures the CLI options
+
+```
+notiz configure <option> <value>
+
+Configures the CLI options
+
+Positionals:
+  option  Option to configure            [string] [required] [choices: "editor"]
+  value   Value to set the option to                         [string] [required]
+
+Options:
+  --help     Show help                                                 [boolean]
+  --version  Show version number                                       [boolean]
 ```
 
 ### Upgrade
