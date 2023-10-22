@@ -285,20 +285,20 @@ update := (args?: ArgumentsCamelCase<{ id?: string; expires?: string }>) : Promi
   unless shortId
     logger.error 'No note ID entered'
     exit 1
-  map := await mapShortNotesIds()
-  id := map.get shortId
-  unless id
-    logger.error 'Note not found'
-    exit 1
-  current := collection!
-    |> .findOne<Pick<Note, 'content'>>
-      { _id: id }
-      projection: { content: 1 }
-    |> await
-  content := current!.content
-    |> openOnEditor
-    |> await
   try
+    map := await mapShortNotesIds()
+    id := map.get shortId
+    unless id
+      logger.error 'Note not found'
+      exit 1
+    current := collection!
+      |> .findOne<Pick<Note, 'content'>>
+        { _id: id }
+        projection: { content: 1 }
+      |> await
+    content := current!.content
+      |> openOnEditor
+      |> await
     expiresAt := if args?.expires then formatExpiresAt dayjs(), args.expires
     await collection!.updateOne
       { _id: id }
@@ -318,15 +318,15 @@ update := (args?: ArgumentsCamelCase<{ id?: string; expires?: string }>) : Promi
 create := (args?: ArgumentsCamelCase<{ note?: string[]; expires?: string }>) : Promise<void> ->
   createdAt := dayjs()
   expiresAt .= null
-  content := switch args?.note
-    []
-      await openOnEditor()
-    [...items]
-      items.join ' '
-  unless content  
-    logger.error 'No note entered'
-    exit 1
   try
+    content := switch args?.note
+      []
+        await openOnEditor()
+      [...items]
+        items.join ' '
+    unless content  
+      logger.error 'No note entered'
+      exit 1
     expiresAt = if args?.expires then formatExpiresAt createdAt, args.expires
     await collection!.insertOne {
       content,
