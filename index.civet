@@ -371,12 +371,14 @@ yargs hideBin argv
       |> .positional 'value', { describe: 'Value to set the option to', type: 'string' }
     (args) ->
       args |> configure |> await
+      exit 0
   |> .command 'view <id>', "View a note",
     (yargs) -> yargs
       |> .positional 'id', { describe: 'Note id', type: 'string' }
       |> .option 'content-only', { describe: 'Only view the note content', type: 'boolean', alias: 'c' }
     (args) ->
       args |> view |> await
+      exit 0
   |> .command 'search <content>', 'Search notes by content',
     (yargs) -> yargs
       |> .positional 'content', { describe: 'Note content', type: 'string' }
