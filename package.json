@@ -4,8 +4,7 @@
   "main": "notiz.ts",
   "type": "module",
   "bin": {
-    "notiz": "./notiz.ts",
-    "notiz.setup": "./setup.ts"
+    "notiz": "./notiz.ts"
   },
   "scripts": {
     "start": "bun run --bun index.civet",
