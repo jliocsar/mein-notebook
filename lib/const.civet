@@ -10,6 +10,7 @@ TMP_FILE_NAME := path.resolve '/tmp', 'notiz_tmp_buffer.md'
 MEINE_NOTEBOOK_PATH := path.resolve HOME, '.notiz'
 OPTIONS_PATH := path.resolve MEINE_NOTEBOOK_PATH, 'options'
 unless fs.existsSync OPTIONS_PATH
+  fs.mkdirSync MEINE_NOTEBOOK_PATH
   await Bun.write OPTIONS_PATH, '{}'
 OPTIONS_FILE := Bun.file OPTIONS_PATH
 EDITOR := OPTIONS_FILE
