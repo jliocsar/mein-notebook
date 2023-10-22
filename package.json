@@ -1,6 +1,6 @@
 {
   "name": "@jliocsar/notiz-cli",
-  "version": "0.1.5",
+  "version": "0.1.6",
   "main": "notiz.ts",
   "type": "module",
   "bin": {

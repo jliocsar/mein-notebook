@@ -139,16 +139,15 @@ listAll := (args?: ArgumentsCamelCase<{ sort?: string, sortdesc?: string }>) ->
     unless length
       printSuccess C.bold 'No notes found'
       exit 0
-    console.clear()
+    stdout.write '\n\n'
     printSuccess C.bold 'Notes:'
     for { id, content, createdAt, expiresAt }, index of rows
       markdown += `# ${id}
 
 ${content}
 
-${`> Created at ${createdAt.toLocaleString()}`}
-
-${expiresAt ? `> Expires at ${expiresAt}` : ''}
+${C.dim 'Created at ' + createdAt.toLocaleString()}
+${expiresAt ? C.dim `- Expires at ${expiresAt}` : ''}
 ${index < length - 1 ? '---\n' : ''}`
   catch error
     printError 'Failed to load notes'
