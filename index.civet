@@ -73,7 +73,7 @@ auth := : Promise<void> ->
     printError (error as Error).message
     exit 1
 
-if not fs.existsSync DATABASE_CONFIG_PATH
+unless fs.existsSync DATABASE_CONFIG_PATH
   await auth()
 
 db := unless 'auth' is in argv
@@ -230,17 +230,18 @@ deleteByIds := (ids?: (string | number)[]) ->
   unless ids?.length
     printError 'No note ID entered'
     exit 1
-  unless ids.every Number.isInteger
-    printError 'Every note ID must be an integer'
-    exit 1
+  shouldDeleteAll := ids.length is 1 and ids.0 is 'all'
+  unless shouldDeleteAll
+    ids = ids.map Number
+    unless ids.every Number.isInteger
+      printError 'Every note ID must be an integer'
+      exit 1
   try
-    shouldDeleteAll := ids.length is 1
-      and ids.0 is 'all'
     db!.delete notes
       |> .where
         shouldDeleteAll
           ? undefined
-          : inArray notes.id, ids.map Number
+          : inArray notes.id, ids as number[]
       |> .returning()
       |> await
     unless shouldDeleteAll
