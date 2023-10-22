@@ -158,7 +158,7 @@ search := (args?: ArgumentsCamelCase<{ content?: string, sort?: string, sortdesc
   try
     rows := collection!
       |> .find<ProjectedNote>
-        content: new RegExp args.content, 'i'
+        { content: $eq: new RegExp args.content, 'i' }
         projection: NOTE_FIND_PROJECTION
       |> .toArray()
       |> await
