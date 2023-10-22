@@ -17,7 +17,6 @@ type { ObjectId } from mongodb
 { authInstance } from ./lib/auth.civet
 { logger } from ./lib/logger.civet
 { openOnEditor } from ./lib/editor.civet
-{ type SelectNote, notes } from ./lib/db/schema
 {
   BANNER
   DATABASE_CONFIG_PATH
@@ -229,7 +228,7 @@ view := (args?: ArgumentsCamelCase<{ id?: number, contentOnly?: boolean }>) : Pr
     exit 1
   try
     note := collection!
-      |> .findOne<ProjectedNote> { $eq: [notes.id, id] },
+      |> .findOne<ProjectedNote> { id },
           projection: NOTE_FIND_PROJECTION
       |> await
     unless note
@@ -287,7 +286,7 @@ update := (args?: ArgumentsCamelCase<{ id?: string; expires?: string }>) : Promi
     logger.error 'Note not found'
     exit 1
   current := collection!
-    |> .findOne<SelectNote>
+    |> .findOne<Pick<Note, 'content'>>
       { _id: id }
       projection: { content: 1 }
     |> await
