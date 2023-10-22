@@ -7,7 +7,7 @@
 
 # Notiz
 
-[![Bun][bun-badge]][bun-url] [![Turso][turso-badge]][turso-url] [![Civet][civet-badge]][civet-url]
+[![Bun][bun-badge]][bun-url] [![MongoDB][mongodb-badge]][mongodb-url] [![Civet][civet-badge]][civet-url]
 
 _Easy to use CLI notes manager_
 
@@ -19,45 +19,32 @@ _Easy to use CLI notes manager_
 
 Notiz is a CLI notes manager.
 
-It outputs notes in markdown format, meaning you can add tables, code snippet with syntax highlight, URLs and much more to notes that are displayed directly in your terminal.
+It outputs notes in markdown format, meaning you can add tables, code snippets with syntax highlight, URLs and much more to notes that are displayed directly in your terminal.
 
-All notes are stored in your own [Turso][turso-url] instance: _your data is yours_.
+All notes are stored in your own [MongoDB Atlas][mongodb-atlas-url] instance: _your data is yours_.
 This also means you can treat your notes as actual documents/records that will be persisted until you delete them through either your CLI or directly in your database (i.e. DB tools).
 
 ## Requirements
 
 - [Bun][bun-url] 1.0.0 or above;
-- [Turso](https://github.com/tursodatabase/turso-cli) CLI;
 - Git.
 
 ## Installation
 
-**Read this before proceeding!**
+Simply install the CLI tool from `npm`:
 
-> **Important**
+> **Note**
 >
-> If you've previously installed Notiz and/or you already have a database setup, read the [Manual](#manual) section below.
-
-### Script
-
-Notiz ships a setup script to facilitate the whole process of installing the tool for the first time.
+> Can't install globally with Bun yet, since Bun isn't currently running `postinstall` scripts.
 
 ```sh
-curl -fsSL bit.ly/3QnmMSS | bash
+npm i -g @jliocsar/notiz@latest
 ```
 
-It will automagically create your [Turso][turso-url] database and copy the URL/Auth Token to the `~/.notiz` folder, so you won't have to worry with anything but input your notes!
-
-### Manual
-
-The process of manually installing Notiz is quite straightforward as well.
-
-You'll need to setup your Turso database beforehand, then install Notiz globally:
+Create a secret of your choice and set as an env. variable named `NOTIZ_SECRET` in your terminal's rc file (i.e. `.zshrc`, `.bashrc`...):
 
 ```sh
-# Can't install globally with Bun yet
-# as Bun is currently not running `postinstall` scripts
-npm i -g @jliocsar/notiz@latest
+export NOTIZ_SECRET='my secret'
 ```
 
 Then simply authenticate your database through Notiz's CLI itself:
@@ -66,9 +53,11 @@ Then simply authenticate your database through Notiz's CLI itself:
 notiz auth
 ```
 
+Make sure you input your MongoDB connection URI with your username & password authentication!
+
 > **Note**
-> This will also create a migration in your database, adding all necessary tables and such for Notiz to run.
-`
+>
+> Your URI will be stored in a encrypted file in the `~/.notiz` directory, it'll use your `NOTIZ_SECRET` env. variable as a secret for the encryption.
 
 ## Development
 
@@ -81,10 +70,6 @@ bun i
 ```
 
 This will install all dependencies and transpile files from `.civet` to `.civet.tsx`, so you can also run the command from the `notiz` executable.
-
-The list of scripts is available in the `package.json`, with the DB related scripts being prefixed by `db:`.
-
-Most of the work of migrating tables can be done either by running `bun start auth` or the `./install` script, but that's up to you -- you can also create the table schemas yourself.
 
 The main scripts are:
 
@@ -101,7 +86,7 @@ bun transpile
 ```
 
 > **Note**
-> The database credentials used in development are the same from your usual Notiz command (store as an encrypted file in `~/.notiz/database`), so keep that in mind!
+> The database credentials used in development are the same from your usual Notiz command, so keep that in mind!
 
 ## Usage
 
@@ -273,8 +258,9 @@ Feel free to contribute and/or buy me some coffee if you like it!
 
 [bun-badge]: https://img.shields.io/badge/bun-fbf0df?style=flat-square&logo=bun&logoColor=fbf0df&color=14151a
 [bun-url]: https://bun.sh/
-[turso-badge]: https://img.shields.io/badge/turso-121c22?style=flat-square&logo=turso&logoColor=4ff8d2
-[turso-url]: https://turso.tech/
+[mongodb-badge]: https://img.shields.io/badge/mongo-001D2C?style=flat-square&logo=mongodb&logoColor=00FF5B
+[mongodb-atlas-url]: https://www.mongodb.com/atlas/database
+[mongodb-url]: https://www.mongodb.com/
 [civet-badge]: https://img.shields.io/badge/civet-3e63dd?style=flat-square
 [civet-url]: https://civet.dev/
 [nvim-url]: https://neovim.io/

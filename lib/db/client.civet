@@ -1,15 +1,16 @@
-* as path from node:path
-{ drizzle } from drizzle-orm/libsql
-{ createClient: createLibsqlClient } from @libsql/client
+{ MongoClient, ServerApiVersion } from mongodb
+// @ts-expect-error - no types
+{ register } from on-exit-leak-free
 
-* as schema from ./schema.civet
+{ authInstance } from ../auth.civet
 
 export createClient := ->
-  drizzleConfigPath := path.resolve import.meta.dir, '../../drizzle.config.js'
-  { default: drizzleConfig } := await import drizzleConfigPath
-  client := createLibsqlClient drizzleConfig.dbCredentials
-  db := drizzle client, {
-    schema
-    // +logger
-  }
-  { client, db }
+  { uri } := await authInstance.readDbCredentials()
+  client := new MongoClient uri,
+    serverApi:
+      version: ServerApiVersion.v1
+      strict: true
+      deprecationErrors: true
+  register client, ->
+    client.close true
+  client

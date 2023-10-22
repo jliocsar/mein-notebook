@@ -1,20 +1,36 @@
 fs from node:fs
+{ exit } from node:process
 
 Cryptify from cryptify
+* as C from colorette
 
-{ MEINE_NOTEBOOK_PATH, DATABASE_CONFIG_PATH, SECRET } from ./const.civet
+{ logger } from ./logger.civet
+{ NOTIZ_PATH, DATABASE_CONFIG_PATH, SECRET } from ./const.civet
 
 export class Auth
-  @(private url: string, private authToken: string)
+  @(private crypt = new Cryptify DATABASE_CONFIG_PATH, SECRET, undefined, 'utf-8', true, true)
 
-  createDbCredentials()
+  readDbCredentials()
     try
-      unless fs.existsSync MEINE_NOTEBOOK_PATH
-        fs.mkdirSync MEINE_NOTEBOOK_PATH
-      data := { @url, @authToken } |> JSON.stringify
-      await Bun.write DATABASE_CONFIG_PATH, data
-      crypt := new Cryptify DATABASE_CONFIG_PATH, SECRET, undefined, 'utf-8', true, true
-      await crypt.encrypt()
+      await @crypt.decrypt()
+      file := Bun.file DATABASE_CONFIG_PATH
+      data := await file.json<{ uri: string }>()
+      await @crypt.encrypt()
+      data
     catch error
-      fs.rmSync MEINE_NOTEBOOK_PATH, recursive: true
+      logger.error (error as Error).message
+      logger.error `Did you run the ${C.cyanBright 'notiz auth'} command?`
+      exit 1
+
+  createDbCredentials(uri: string)
+    try
+      unless fs.existsSync NOTIZ_PATH
+        fs.mkdirSync NOTIZ_PATH
+      data := { uri } |> JSON.stringify
+      await Bun.write DATABASE_CONFIG_PATH, data
+      await @crypt.encrypt()
+    catch error
+      fs.rmSync NOTIZ_PATH, recursive: true
       throw error
+
+export authInstance := new Auth()

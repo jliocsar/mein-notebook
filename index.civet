@@ -9,12 +9,12 @@ dayjs from dayjs
 cliMd from cli-markdown
 * as C from colorette
 { hideBin } from yargs/helpers
-{ eq, inArray, like } from drizzle-orm
+type { ObjectId } from mongodb
 
 { upgrade } from ./upgrade.civet
 { createClient } from ./lib/db/client.civet
-{ Auth } from ./lib/auth.civet
 { Prompt } from ./lib/prompt.civet
+{ authInstance } from ./lib/auth.civet
 { logger } from ./lib/logger.civet
 { openOnEditor } from ./lib/editor.civet
 { type SelectNote, notes } from ./lib/db/schema
@@ -24,6 +24,10 @@ cliMd from cli-markdown
   OPTIONS_FILE
   SECRET
 } from ./lib/const.civet
+
+type WithId<T> =
+  T &
+    id: ObjectId
 
 type NotizOptions
   editor: string
@@ -47,36 +51,64 @@ auth := : Promise<void> ->
   stdout.write BANNER + '\n'
   logger.warn 'WARN!'
   stdout.write 'No database config found, asking for one...\n\n'
-  url := prompts.input 'URL of the database\n '
+  uri := prompts.input 'URI of the database\n '
     |> await
     |> .trim()
-  unless url
-    logger.error 'No URL entered'
+  unless uri
+    logger.error 'No URI entered'
     exit 1
   stdout.write '\n'
-  authToken := prompts.secret 'Database auth token\n '
-    |> await
-    |> .trim()
-  unless authToken
-    logger.error '\nNo auth token entered'
-    exit 1
   try
-    instance := new Auth url, authToken
-    await instance.createDbCredentials()
+    await authInstance.createDbCredentials uri
     noop = true
-    logger.success '\nDatabase config saved...\n'
-    logger.waiting 'Applying database migration...'
-    await import './lib/db/migrate.civet'
+    logger.success 'Database config saved...'
   catch error
-    logger.error '\nFailed to write database config\n'
+    logger.error 'Failed to write database config'
     logger.error (error as Error).message
     exit 1
 
 unless fs.existsSync DATABASE_CONFIG_PATH
   await auth()
 
-db := unless 'auth' is in argv
-  createClient() |> await |> .db
+type Note
+  content: string
+  createdAt: Date
+  expiresAt?: Date
+type ProjectedNoteShortId =
+  id: ObjectId
+  shortId: string
+type ProjectedNote = Note & ProjectedNoteShortId
+type PrintNotesOptions
+  disableHeader?: boolean
+
+collection := unless 'auth' is in argv
+  createClient()
+    |> await |> .connect()
+    |> await |> .db 'notiz'
+    |> .collection<Note> 'notes'
+
+NOTE_SHORT_ID_PROJECTION := {
+  _id: 0
+  id: '$_id'
+  shortId: { $substr: [{ $toString: '$_id' }, 21, 24] }
+} as const
+NOTE_FIND_PROJECTION := Object.assign {
+  content: 1
+  createdAt: 1
+  expiresAt: 1
+} as const, NOTE_SHORT_ID_PROJECTION
+
+encoder := new TextEncoder()
+
+lastBytesOf := (value: string, length: number) ->
+  encoder
+    |> .encode(value)
+    |> .slice(-length)
+
+objectIdAlias := (id: ObjectId) ->
+  lastBytesOf id.toHexString(), 3
+    |> Buffer.from
+    |> .toString()
 
 sortBy := (field: string) ->
   (orig: any, comp: any) ->
@@ -105,7 +137,7 @@ formatExpiresAt := (createdAt: dayjs.Dayjs, expires: string) ->
       period as dayjs.ManipulateType
     |> .toDate()
 
-configure := (args?: ArgumentsCamelCase<{ option?: 'editor' | (string & {}), value?: string }>) ->
+configure := (args?: ArgumentsCamelCase<{ option?: 'editor' | (string & {}), value?: string }>) : Promise<void> ->
   unless args?.option and args?.value
     logger.error 'No option or value entered'
     exit 1
@@ -115,36 +147,33 @@ configure := (args?: ArgumentsCamelCase<{ option?: 'editor' | (string & {}), val
   currentOptions[args.option as keyof NotizOptions] = args.value
   logger.success `Option "${args.option}" configured`
   await Bun.write OPTIONS_FILE, JSON.stringify currentOptions
-  void 0
 
-search := (args?: ArgumentsCamelCase<{ content?: string, sort?: string, sortdesc?: string }>) ->
+search := (args?: ArgumentsCamelCase<{ content?: string, sort?: string, sortdesc?: string }>) : Promise<void> ->
   unless args?.content
     logger.error 'No search term entered'
     exit 1
   logger.info 'Searching notes...'
   try
-    rows := db!.select()
-      |> .from notes
-      |> .where like notes.content, `%${args.content}%`
+    rows := collection!
+      |> .find<ProjectedNote>
+        content: new RegExp args.content, 'i'
+        projection: NOTE_FIND_PROJECTION
+      |> .toArray()
       |> await
-    printNotes rows, args
+    await printNotes rows, args
   catch error
     logger.error 'Failed to search notes'
     logger.error (error as Error).message
     exit 1
-  void 0
 
-type PrintNotesOptions
-  disableHeader?: boolean
-
-printNotes := (notesList: SelectNote[], args?: ArgumentsCamelCase<{ sort?: string, sortdesc?: string }>, options?: PrintNotesOptions) ->
+printNotes := (notesList: WithId<Note>[], args?: ArgumentsCamelCase<{ sort?: string, sortdesc?: string }>, options?: PrintNotesOptions) : Promise<void> ->
   length := notesList.length
   if length is 0
     logger.success C.bold 'No notes found'
     exit 0
   markdown .= ''
-  expired : number[] := []
-  rows : { id: number, content: string, createdAt: string, expiresAt: string }[] .= []
+  expired : ObjectId[] := []
+  rows : WithId<Omit<Note, 'createdAt' | 'expiresAt'> & { createdAt: string; expiresAt: string }>[] .= []
   for { id, content, createdAt, expiresAt } of notesList
     hasExpired := expiresAt and expiresAt < new Date()
     if hasExpired
@@ -158,7 +187,8 @@ printNotes := (notesList: SelectNote[], args?: ArgumentsCamelCase<{ sort?: strin
       }
   unless expired.length is 0
     logger.warn 'Some notes have expired'
-    await deleteByIds expired
+    await collection!.deleteMany
+      id: { $in: expired }
   sort := args?.sort or args?.sortdesc
   isDescending := args?.sortdesc is sort
   if sort and sort is in choices
@@ -167,7 +197,7 @@ printNotes := (notesList: SelectNote[], args?: ArgumentsCamelCase<{ sort?: strin
     stdout.write C.dim '-\n'
     logger.success C.bold 'Notes:'
   for { id, content, createdAt, expiresAt }, index of rows
-    markdown += `# ${id}
+    markdown += `# ${objectIdAlias id}
 
 ${content}
 
@@ -177,101 +207,102 @@ ${index < length - 1 ? '\n---\n' : ''}`
   markdown
     |> cliMd
     |> stdout.write
-  void 0
 
-listAll := (args?: ArgumentsCamelCase<{ sort?: string, sortdesc?: string }>) ->
+listAll := (args?: ArgumentsCamelCase<{ sort?: string, sortdesc?: string }>) : Promise<void> ->
   try
     logger.info 'Loading notes...'
-    allNotes := db!.select()
-      |> .from notes
+    allNotes := collection!
+      |> .find<ProjectedNote> {},
+          projection: NOTE_FIND_PROJECTION
+      |> .toArray()
       |> await
-    printNotes allNotes, args
+    await printNotes allNotes, args
   catch error
     logger.error 'Failed to load notes'
     logger.error (error as Error).message
     exit 1
-  void 0
 
-view := (args?: ArgumentsCamelCase<{ id?: number, contentOnly?: boolean }>) ->
+view := (args?: ArgumentsCamelCase<{ id?: number, contentOnly?: boolean }>) : Promise<void> ->
   id := args?.id
   unless id
     logger.error 'No note ID entered'
     exit 1
-  unless Number.isInteger id
-    logger.error 'Note ID must be an integer'
-    exit 1
   try
-    notesView := db!.select()
-      |> .from notes
-      |> .where eq notes.id, id
+    note := collection!
+      |> .findOne<ProjectedNote> { $eq: [notes.id, id] },
+          projection: NOTE_FIND_PROJECTION
       |> await
-      |> &.0
-    unless notesView
+    unless note
       logger.error 'Note not found'
       exit 1
     if args?.contentOnly
-      stdout.write notesView.content
+      stdout.write note.content
     else
-      printNotes [notesView], args, { +disableHeader }
+      await printNotes [note], args, { +disableHeader }
   catch error
     logger.error 'Failed to view note'
     logger.error (error as Error).message
     exit 1
-  void 0
 
-deleteByIds := (ids?: (string | number)[]) ->
-  unless ids?.length
+mapShortNotesIds := ->
+  allNotes := collection!
+    |> .find<ProjectedNoteShortId> {},
+        projection: NOTE_SHORT_ID_PROJECTION
+    |> .toArray()
+    |> await
+  map := new Map<string, ObjectId>()
+  for note of allNotes
+    map.set note.shortId, note.id
+  map
+
+deleteByShortIds := (shortIds?: string[]) : Promise<void> ->
+  unless shortIds?.length
     logger.error 'No note ID entered'
     exit 1
-  shouldDeleteAll := ids.length is 1 and ids.0 is 'all'
-  unless shouldDeleteAll
-    ids = ids.map Number
-    unless ids.every Number.isInteger
-      logger.error 'Every note ID must be an integer'
-      exit 1
+  shouldDeleteAll := shortIds.length is 1 and shortIds.0 is 'all'
   try
-    db!.delete notes
-      |> .where
-        shouldDeleteAll
-          ? undefined
-          : inArray notes.id, ids as number[]
-      |> .returning()
-      |> await
-    unless shouldDeleteAll
-      listAll()
+    if shouldDeleteAll
+      await collection!.deleteMany {}
+      return
+    map := await mapShortNotesIds()
+    idsToDelete : ObjectId[] := []
+    for shortId of shortIds
+      if map.has shortId
+        idsToDelete.push map.get(shortId)!
+    unless idsToDelete.length is 0
+      await collection!.deleteMany { $in: idsToDelete }
+    await listAll()
   catch error
     logger.error (error as Error).message
     exit 1
-  void 0
 
-update := (args?: ArgumentsCamelCase<{ id?: number; expires?: string }>) ->
-  id := args?.id
-  unless id
+update := (args?: ArgumentsCamelCase<{ id?: string; expires?: string }>) : Promise<void> ->
+  shortId := args?.id
+  unless shortId
     logger.error 'No note ID entered'
     exit 1
-  unless Number.isInteger id
-    logger.error 'Note ID must be an integer'
+  map := await mapShortNotesIds()
+  id := map.get shortId
+  unless id
+    logger.error 'Note not found'
     exit 1
-  current := db!.select { notes.content }
-    |> .from notes
-    |> .where eq notes.id, id
+  current := collection!
+    |> .findOne<SelectNote>
+      { _id: id }
+      projection: { content: 1 }
     |> await
-    |> &.0
-  content := await openOnEditor current.content
-  unless content
-    logger.error 'No note entered'
-    exit 1
+  content := current!.content
+    |> openOnEditor
+    |> await
   try
     expiresAt := if args?.expires then formatExpiresAt dayjs(), args.expires
-    db!.update notes
-      |> .set {
-          content
-          ...(expiresAt instanceof Date and { expiresAt })
-        }
-      |> .where eq notes.id, id
-      |> .returning()
-      |> await
-    listAll()
+    await collection!.updateOne
+      { _id: id }
+      $set: {
+        content,
+        ...(expiresAt instanceof Date and { expiresAt })
+      }
+    await listAll()
   catch error
     switch (error as Error).message
       /UNIQUE constraint/
@@ -279,9 +310,8 @@ update := (args?: ArgumentsCamelCase<{ id?: number; expires?: string }>) ->
       else
         logger.error (error as Error).message
     exit 1
-  void 0
 
-create := (args?: ArgumentsCamelCase<{ note?: string[]; expires?: string }>) ->
+create := (args?: ArgumentsCamelCase<{ note?: string[]; expires?: string }>) : Promise<void> ->
   createdAt := dayjs()
   expiresAt .= null
   content := switch args?.note
@@ -294,14 +324,12 @@ create := (args?: ArgumentsCamelCase<{ note?: string[]; expires?: string }>) ->
     exit 1
   try
     expiresAt = if args?.expires then formatExpiresAt createdAt, args.expires
-    db!.insert notes
-      |> .values {
-          content,
-          createdAt: createdAt.toDate(),
-          ...(expiresAt instanceof Date and { expiresAt })
-        }
-      |> await
-    listAll()
+    await collection!.insertOne {
+      content,
+      createdAt: createdAt.toDate(),
+      ...(expiresAt instanceof Date and { expiresAt })
+    }
+    await listAll()
   catch error
     switch (error as Error).message
       /UNIQUE constraint/
@@ -309,7 +337,6 @@ create := (args?: ArgumentsCamelCase<{ note?: string[]; expires?: string }>) ->
       else
         logger.error (error as Error).message
     exit 1
-  void 0
 
 yargs hideBin argv
   |> .scriptName 'notiz'
@@ -320,8 +347,16 @@ yargs hideBin argv
       |> .json()
       |> await
       |> .version
-  |> .command 'upgrade', 'Upgrades the command to its latest version', ->, upgrade
-  |> .command 'auth', 'Updates the database access configuration', ->, auth
+  |> .command 'upgrade', 'Upgrades the command to its latest version',
+    ->
+    -> 
+      upgrade()
+      exit 0
+  |> .command 'auth', 'Updates the database access configuration',
+    ->
+    ->
+      await auth()
+      exit 0
   |> .command 'configure <option> <value>', 'Configures the CLI options',
     (yargs) -> yargs
       |> .positional 'option', {
@@ -330,12 +365,14 @@ yargs hideBin argv
           type: 'string'
         }
       |> .positional 'value', { describe: 'Value to set the option to', type: 'string' }
-    configure
+    (args) ->
+      args |> configure |> await
   |> .command 'view <id>', "View a note",
     (yargs) -> yargs
       |> .positional 'id', { describe: 'Note id', type: 'number' }
       |> .option 'content-only', { describe: 'Only view the note content', type: 'boolean', alias: 'c' }
-    view
+    (args) ->
+      args |> view |> await
   |> .command 'search <content>', 'Search notes by content',
     (yargs) -> yargs
       |> .positional 'content', { describe: 'Note content', type: 'string' }
@@ -349,7 +386,9 @@ yargs hideBin argv
           describe: 'Field to sort descending by'
           type: 'string'
         }
-    search
+    (args) ->
+      args |> search |> await
+      exit 0
   |> .command 'list', 'List all notes',
     (yargs) -> yargs
       |> .option 'sort', {
@@ -362,21 +401,29 @@ yargs hideBin argv
           describe: 'Field to sort descending by'
           type: 'string'
         }
-    listAll
+    (args) ->
+      args |> listAll |> await
+      exit 0
   |> .command 'delete <id...>', 'Delete note(s) by ID(s) ("all" to delete all)',
     (yargs) -> yargs
       |> .positional 'id', { describe: 'Note id', type: 'string', +array }
-    (args) -> deleteByIds args.id
+    (args) ->
+      args.id |> deleteByShortIds |> await
+      exit 0
   |> .command 'update <id>', 'Update a note',
     (yargs) -> yargs
-      |> .positional 'id', { describe: 'Note id', type: 'number' }
+      |> .positional 'id', { describe: 'Note id', type: 'string' }
       |> .option 'expires', { describe: 'Note expiration time', type: 'string', alias: 'e', -required }
-    update
+    (args) ->
+      args |> update |> await
+      exit 0
   |> .command 'create [note...]', 'Create a note',
     (yargs) -> yargs
       |> .positional 'note', { describe: 'Note content', type: 'string', -required, +array }
       |> .option 'expires', { describe: 'Note expiration time', type: 'string', alias: 'e', -required }
-    create
+    (args) ->
+      args |> create |> await
+      exit 0
   |> .demandCommand 1
   |> .recommendCommands()
   |> .argv
