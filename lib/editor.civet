@@ -2,9 +2,25 @@
 
 { EDITOR, TMP_FILE_NAME } from ./const.civet
 
+DefaultEditorsArgs := {
+  Vi: ['-n']
+} as const
+
+getDefaultEditorArgs := (editor: string) : string[] ->
+  switch editor
+    'vi'
+    'vim'
+    'nvim'
+      DefaultEditorsArgs.Vi
+  []
+
 export openOnEditor := (initialBuffer = '') ->
   await Bun.write TMP_FILE_NAME, initialBuffer
-  editor := spawnSync EDITOR, ['-n', TMP_FILE_NAME], stdio: 'inherit'
+  editorArgs := getDefaultEditorArgs EDITOR
+  editor := spawnSync
+    EDITOR
+    editorArgs.concat [TMP_FILE_NAME]
+    stdio: 'inherit'
   if editor.status
     throw new Error 'Failed to open editor'
   Bun.file TMP_FILE_NAME

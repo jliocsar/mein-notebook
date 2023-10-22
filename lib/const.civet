@@ -13,11 +13,13 @@ unless fs.existsSync OPTIONS_PATH
   fs.mkdirSync MEINE_NOTEBOOK_PATH
   await Bun.write OPTIONS_PATH, '{}'
 OPTIONS_FILE := Bun.file OPTIONS_PATH
-EDITOR := OPTIONS_FILE
-  |> .json()
-  |> await
-  |> .editor
-  or env.EDITOR or env.VISUAL or 'nvim'
+EDITOR := env.EDITOR
+  or env.VISUAL
+  or (OPTIONS_FILE
+    |> .json()
+    |> await
+    |> .editor)
+  or 'nvim'
 DATABASE_CONFIG_PATH := path.resolve MEINE_NOTEBOOK_PATH, 'database'
 BANNER := C.magenta
   `
