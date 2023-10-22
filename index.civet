@@ -86,6 +86,9 @@ collection := unless 'auth' is in argv
     |> await |> .db 'notiz'
     |> .collection<Note> 'notes'
 
+if collection
+  await collection.createIndex { content: 1 }, { unique: true }
+
 NOTE_SHORT_ID_PROJECTION := {
   _id: 0
   id: '$_id'
