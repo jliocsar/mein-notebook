@@ -236,6 +236,7 @@ Options:
 
 ## TODO
 
+- [ ] Fix search;
 - [ ] Write docs using GH's Wiki.
 
 ## Contributing
