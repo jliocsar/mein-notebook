@@ -21,7 +21,8 @@ Notiz is a CLI notes manager.
 
 It outputs notes in markdown format, meaning you can add tables, code snippet with syntax highlight, URLs and much more to notes that are displayed directly in your terminal.
 
-All notes are stored in your own [Turso][turso-url] instance: your data is yours.
+All notes are stored in your own [Turso][turso-url] instance: _your data is yours_.
+This also means you can treat your notes as actual documents/records that will be persisted until you delete them through either your CLI or directly in your database (i.e. DB tools).
 
 ## Requirements
 
@@ -31,11 +32,13 @@ All notes are stored in your own [Turso][turso-url] instance: your data is yours
 
 ## Installation
 
-### Script
+**Read this before proceeding!**
 
 > **Important**
 >
-> If you've previously installed Notiz and/or you already have a database setup, read the `Manual` section below.
+> If you've previously installed Notiz and/or you already have a database setup, read the [Manual](#manual) section below.
+
+### Script
 
 Notiz ships a setup script to facilitate the whole process of installing the tool for the first time.
 
@@ -119,8 +122,10 @@ Options:
 
 > **Important**
 >
-> The default editor used by Notiz is defined by the `notiz configure editor` command, or by the `VISUAL` or `EDITOR` env. variables.
+> The default editor used by Notiz is configured by the `notiz configure editor` command, or by setting the `VISUAL`/`EDITOR` env. variables.
 > If neither are present, Notiz will use [`nvim`][nvim-url] by default.
+>
+> Check more details about the editor priority [here](https://github.com/jliocsar/notiz/blob/main/lib/const.civet#L14-L19).
 
 ### List
 

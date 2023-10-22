@@ -1,1 +1,2 @@
 preload = ['@danielx/civet/bun-civet']
+telemetry = false
