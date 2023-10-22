@@ -5,6 +5,8 @@ path from node:path
 
 export HOME := env.HOME!
 export SECRET := env.NOTIZ_SECRET!
+export EDITOR := env.EDITOR or 'nvim'
+export TMP_FILE_NAME := path.resolve '/tmp', 'notiz_tmp_buffer.md'
 export MEINE_NOTEBOOK_PATH := path.resolve HOME, '.notiz'
 export DATABASE_CONFIG_PATH := path.resolve MEINE_NOTEBOOK_PATH, 'database'
 export BANNER := C.magenta

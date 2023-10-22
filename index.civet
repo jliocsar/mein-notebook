@@ -1,6 +1,7 @@
-{ argv, stdout, stderr, exit } from node:process
 fs from node:fs
 path from node:path
+{ spawnSync } from node:child_process
+{ argv, stdout, stderr, exit } from node:process
 
 type { ArgumentsCamelCase } from yargs
 yargs from yargs/yargs
@@ -8,7 +9,6 @@ dayjs from dayjs
 // @ts-expect-error - no types
 cliMd from cli-markdown
 * as C from colorette
-{ Spinner } from @topcli/spinner
 { hideBin } from yargs/helpers
 { eq, inArray } from drizzle-orm
 
@@ -17,13 +17,16 @@ cliMd from cli-markdown
 { Auth } from ./lib/auth.civet
 { notes } from ./lib/db/schema
 {
-  SECRET
-  DATABASE_CONFIG_PATH
   BANNER
+  DATABASE_CONFIG_PATH
+  EDITOR
+  SECRET
+  TMP_FILE_NAME
 } from ./lib/const.civet
 
 printDimmed := (message: string) -> stdout.write C.dim message + '\n'
-printHeader := (message: string) -> stdout.write C.bold message + '\n'
+printSuccess := (message: string) -> stdout.write `${C.bold C.greenBright '✓'} ${message}\n`
+printInfo := (message: string) -> stdout.write `${C.bold C.blueBright '!'} ${message}\n`
 printWaiting := (message: string) -> stdout.write `⏳ ${message}\n`
 printWarning := (message: string) -> stdout.write `${C.bold C.yellowBright '⚠'} ${message}\n`
 printError := (message: string) -> stderr.write `${C.bold C.redBright '❌'} ${message}\n`
@@ -55,18 +58,16 @@ auth := : Promise<void> ->
   unless authToken
     printError '\nNo auth token entered'
     exit 1
-  spinner := new Spinner
-    |> .start C.cyanBright 'Writing database auth...'
 
   try
     instance := new Auth url, authToken
     await instance.createDbCredentials()
     noop = true
-    spinner.succeed '\nDatabase config saved...\n'
+    printSuccess '\nDatabase config saved...\n'
     printWaiting 'Applying database migration...'
     await import './lib/db/migrate.civet'
   catch error
-    spinner.failed '\nFailed to write database config\n'
+    printError '\nFailed to write database config\n'
     printError (error as Error).message
     exit 1
 
@@ -96,8 +97,21 @@ sortByDesc := (field: string) ->
     else
       orig[field]! < comp[field]! ? 1 : -1
 
+formatExpiresAt := (createdAt: dayjs.Dayjs, expires: string) ->
+  [time, rawPeriod] := expires
+    |> .split /^(\d+)\s*(\w+)$/
+    |> .filter Boolean
+  unless rawPeriod
+    return null
+  period := rawPeriod.replace /s$/, ''
+  createdAt
+    |> .add
+      Number time
+      period as dayjs.ManipulateType
+    |> .toDate()
+
 listAll := (args?: ArgumentsCamelCase<{ sort?: string, sortdesc?: string }>) ->
-  spinner := new Spinner |> .start 'Loading notes...'
+  printInfo 'Loading notes...'
   markdown .= ''
   try
     allNotes := db!.select() |> .from notes |> await
@@ -112,7 +126,7 @@ listAll := (args?: ArgumentsCamelCase<{ sort?: string, sortdesc?: string }>) ->
           id
           content
           createdAt: createdAt.toLocaleString()
-          expiresAt: expiresAt?.toLocaleString() ?? ''
+          expiresAt: expiresAt?.toLocaleString() or ''
         }
     unless expired.length is 0
       printWarning 'Some notes have expired'
@@ -123,9 +137,10 @@ listAll := (args?: ArgumentsCamelCase<{ sort?: string, sortdesc?: string }>) ->
       rows = (isDescending ? sortByDesc : sortBy) sort |> rows.sort
     length := rows.length
     unless length
-      spinner.succeed C.bold 'No notes found'
+      printSuccess C.bold 'No notes found'
       exit 0
-    spinner.succeed C.bold 'Notes:'
+    console.clear()
+    printSuccess C.bold 'Notes:'
     for { id, content, createdAt, expiresAt }, index of rows
       markdown += `# ${id}
 
@@ -136,10 +151,12 @@ ${`> Created at ${createdAt.toLocaleString()}`}
 ${expiresAt ? `> Expires at ${expiresAt}` : ''}
 ${index < length - 1 ? '---\n' : ''}`
   catch error
-    spinner.failed 'Failed to load notes'
+    printError 'Failed to load notes'
     printError (error as Error).message
     exit 1
-  stdout.write cliMd markdown
+  markdown
+    |> cliMd
+    |> stdout.write
   void 0
 
 deleteByIds := (ids?: (string | number)[]) ->
@@ -163,18 +180,27 @@ deleteByIds := (ids?: (string | number)[]) ->
     exit 1
   void 0
 
-update := (id?: number) ->
+update := (args?: ArgumentsCamelCase<{ id?: number; expires?: string }>) ->
+  id := args?.id
   unless id
     printError 'No note ID entered'
     exit 1
-  printHeader 'Enter note update:'
-  content := readStdin() |> await
+  current := db!.select { notes.content }
+    |> .from notes
+    |> .where eq notes.id, id
+    |> await
+    |> &.0
+  content := await openOnEditor current.content
   unless content
     printError 'No note entered'
     exit 1
   try
+    expiresAt := if args?.expires then formatExpiresAt dayjs(), args.expires
     db!.update notes
-      |> .set { content }
+      |> .set {
+          content
+          ...(expiresAt instanceof Date && { expiresAt })
+        }
       |> .where eq notes.id, id
       |> .returning()
       |> await
@@ -188,40 +214,33 @@ update := (id?: number) ->
     exit 1
   void 0
 
+openOnEditor := (initialBuffer = '') ->
+  await Bun.write TMP_FILE_NAME, initialBuffer
+  editor := spawnSync EDITOR, ['-n', TMP_FILE_NAME], stdio: 'inherit'
+  if editor.status
+    printError 'Failed to open editor'
+  Bun.file TMP_FILE_NAME
+    |> .text()
+    |> await
+
 create := (args?: ArgumentsCamelCase<{ note?: string[]; expires?: string }>) ->
   createdAt := dayjs()
   expiresAt .= null
   content := switch args?.note
     []
-      printHeader 'Note content:'
-      input := await readStdin()
-      printHeader '\nExpires at:'
-      expiresAt = readStdin()
-        |> await |> (val) ->
-          unless val
-            return null
-          [time, rawPeriod] := val!.split ' '
-          unless rawPeriod
-            return null
-          period := rawPeriod.replace /s$/, ''
-          createdAt.add
-            Number time
-            period as dayjs.ManipulateType
-      input
+      await openOnEditor()
     [...items]
       items.join ' '
   unless content  
     printError 'No note entered'
     exit 1
   try
+    expiresAt = if args?.expires then formatExpiresAt createdAt, args.expires
     db!.insert notes
       |> .values {
           content,
           createdAt: createdAt.toDate(),
-          // @ts-expect-error - ts doesn't know js
-          ...(expiresAt && {
-            expiresAt: (expiresAt as dayjs.Dayjs).toDate()
-          })
+          ...(expiresAt instanceof Date && { expiresAt })
         }
       |> await
     listAll()
@@ -260,15 +279,17 @@ yargs hideBin argv
     listAll
   |> .command 'delete <id...>', 'Delete note(s) by ID(s) ("all" to delete all)',
     (yargs) -> yargs
-      |> .positional 'id', { describe: 'Note id', type: 'string', array: true }
+      |> .positional 'id', { describe: 'Note id', type: 'string', +array }
     (args) -> deleteByIds args.id
   |> .command 'update <id>', 'Update a note',
     (yargs) -> yargs
       |> .positional 'id', { describe: 'Note id', type: 'number' }
-    (args) -> update args.id
+      |> .option 'expires', { describe: 'Note expiration time', type: 'string', alias: 'e', -required }
+    update
   |> .command 'create [note...]', 'Create a note',
     (yargs) -> yargs
-      |> .positional 'note', { describe: 'Note content', type: 'string', required: false, array: true }
+      |> .positional 'note', { describe: 'Note content', type: 'string', -required, +array }
+      |> .option 'expires', { describe: 'Note expiration time', type: 'string', alias: 'e', -required }
     create
   |> .demandCommand 1
   |> .recommendCommands()

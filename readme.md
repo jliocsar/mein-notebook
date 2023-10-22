@@ -117,6 +117,11 @@ Options:
   --version  Show version number                                       [boolean]
 ```
 
+> **Important**
+>
+> The default editor used by Notiz is defined by your `EDITOR` env. variable.
+> If it's not present, Notiz will use [`nvim`][nvim-url] by default.
+
 ### List
 
 Displays all notes in a table format.
@@ -140,7 +145,7 @@ Creates a new note.
 
 Each note can have an `expires at` date, which is a combination of `[value] [unit]`, the unit being any available from the [dayjs](https://day.js.org/docs/en/manipulate/add#list-of-all-available-units) library.
 
-If the note doesn't expire, you can use the shorthand command and simply provide your note at the end, like `notiz create my new note`.
+If you're creating a short note, you can use the shorthand command and simply provide your note at the end, like `notiz create my new note`.
 
 ```
 notiz create [note...]
@@ -151,7 +156,8 @@ Positionals:
   note  Note content                                       [array] [default: []]
 
 Options:
-  --help     Show help                                                 [boolean]
+      --help     Show help                                             [boolean]
+  -e, --expires  Note expiration time                                   [string]
 ```
 
 ### Update
@@ -167,7 +173,8 @@ Positionals:
   id  Note id                                                [number] [required]
 
 Options:
-  --help     Show help                                                 [boolean]
+      --help     Show help                                             [boolean]
+  -e, --expires  Note expiration time                                   [string]
 ```
 
 ### Delete
@@ -247,3 +254,4 @@ Feel free to contribute and/or buy me some coffee if you like it!
 [turso-url]: https://turso.tech/
 [civet-badge]: https://img.shields.io/badge/civet-3e63dd?style=flat-square
 [civet-url]: https://civet.dev/
+[nvim-url]: https://neovim.io/

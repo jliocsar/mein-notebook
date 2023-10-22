@@ -1,6 +1,6 @@
 {
   "name": "@jliocsar/notiz-cli",
-  "version": "0.1.4",
+  "version": "0.1.5",
   "main": "notiz.ts",
   "type": "module",
   "bin": {
@@ -28,7 +28,6 @@
   "dependencies": {
     "@danielx/civet": "latest",
     "@libsql/client": "latest",
-    "@topcli/spinner": "latest",
     "cli-markdown": "latest",
     "colorette": "latest",
     "cryptify": "latest",
