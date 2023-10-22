@@ -50,7 +50,7 @@ auth := : Promise<void> ->
   stdout.write BANNER + '\n'
   logger.warn 'WARN!'
   stdout.write 'No database config found, asking for one...\n\n'
-  uri := prompts.input 'URI of the database\n '
+  uri := prompts.secret 'URI of the database\n '
     |> await
     |> .trim()
   unless uri
@@ -187,7 +187,7 @@ printNotes := (notesList: WithId<Note>[], args?: ArgumentsCamelCase<{ sort?: str
   unless expired.length is 0
     logger.warn 'Some notes have expired'
     await collection!.deleteMany
-      id: { $in: expired }
+      _id: { $in: expired }
   sort := args?.sort or args?.sortdesc
   isDescending := args?.sortdesc is sort
   if sort and sort is in choices
@@ -221,14 +221,19 @@ listAll := (args?: ArgumentsCamelCase<{ sort?: string, sortdesc?: string }>) : P
     logger.error (error as Error).message
     exit 1
 
-view := (args?: ArgumentsCamelCase<{ id?: number, contentOnly?: boolean }>) : Promise<void> ->
-  id := args?.id
-  unless id
+view := (args?: ArgumentsCamelCase<{ id?: string, contentOnly?: boolean }>) : Promise<void> ->
+  shortId := args?.id
+  unless shortId
     logger.error 'No note ID entered'
     exit 1
   try
+    map := await mapShortNotesIds()
+    id := map.get shortId
+    unless id
+      logger.error 'Note not found'
+      exit 1
     note := collection!
-      |> .findOne<ProjectedNote> { id },
+      |> .findOne<ProjectedNote> { _id: id },
           projection: NOTE_FIND_PROJECTION
       |> await
     unless note
@@ -269,7 +274,7 @@ deleteByShortIds := (shortIds?: string[]) : Promise<void> ->
       if map.has shortId
         idsToDelete.push map.get(shortId)!
     unless idsToDelete.length is 0
-      await collection!.deleteMany { $in: idsToDelete }
+      await collection!.deleteMany _id: { $in: idsToDelete }
     await listAll()
   catch error
     logger.error (error as Error).message
@@ -368,7 +373,7 @@ yargs hideBin argv
       args |> configure |> await
   |> .command 'view <id>', "View a note",
     (yargs) -> yargs
-      |> .positional 'id', { describe: 'Note id', type: 'number' }
+      |> .positional 'id', { describe: 'Note id', type: 'string' }
       |> .option 'content-only', { describe: 'Only view the note content', type: 'boolean', alias: 'c' }
     (args) ->
       args |> view |> await
