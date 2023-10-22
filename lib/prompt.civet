@@ -1,0 +1,9 @@
+* as prompts from @inquirer/prompts
+* as C from colorette
+
+export class Prompt
+  input(message: string)
+    prompts.input { message: C.dim message }
+
+  secret(message: string)
+    prompts.password { message: C.dim message }

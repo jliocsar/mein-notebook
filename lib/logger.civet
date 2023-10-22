@@ -1,0 +1,23 @@
+{ stdout, stderr } from node:process
+
+* as C from colorette
+
+class Logger
+  private out := stdout.write.bind stdout
+
+  success(message: string)
+    @out `${C.bold C.greenBright '✓'} ${message}\n`
+
+  info(message: string)
+    @out `${C.bold C.blueBright '!'} ${message}\n`
+
+  waiting(message: string)
+    @out `⏳ ${message}\n`
+  
+  warn(message: string)
+    @out `${C.bold C.yellowBright '⚠'} ${message}\n`
+
+  error(message: string)
+    stderr.write `${C.bold C.redBright '❌'} ${message}\n`
+
+export logger := new Logger

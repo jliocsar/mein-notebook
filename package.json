@@ -27,6 +27,7 @@
   },
   "dependencies": {
     "@danielx/civet": "latest",
+    "@inquirer/prompts": "latest",
     "@libsql/client": "latest",
     "cli-markdown": "latest",
     "colorette": "latest",

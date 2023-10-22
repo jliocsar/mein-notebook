@@ -1,6 +1,6 @@
 fs from node:fs
 path from node:path
-{ argv, stdout, stderr, exit } from node:process
+{ argv, stdout, exit } from node:process
 
 type { ArgumentsCamelCase } from yargs
 yargs from yargs/yargs
@@ -14,6 +14,8 @@ cliMd from cli-markdown
 { upgrade } from ./upgrade.civet
 { createClient } from ./lib/db/client.civet
 { Auth } from ./lib/auth.civet
+{ Prompt } from ./lib/prompt.civet
+{ logger } from ./lib/logger.civet
 { openOnEditor } from ./lib/editor.civet
 { type SelectNote, notes } from ./lib/db/schema
 {
@@ -26,15 +28,10 @@ cliMd from cli-markdown
 type NotizOptions
   editor: string
 
-printDimmed := (message: string) -> stdout.write C.dim message + '\n'
-printSuccess := (message: string) -> stdout.write `${C.bold C.greenBright '✓'} ${message}\n`
-printInfo := (message: string) -> stdout.write `${C.bold C.blueBright '!'} ${message}\n`
-printWaiting := (message: string) -> stdout.write `⏳ ${message}\n`
-printWarning := (message: string) -> stdout.write `${C.bold C.yellowBright '⚠'} ${message}\n`
-printError := (message: string) -> stderr.write `${C.bold C.redBright '❌'} ${message}\n`
+prompts := new Prompt
 
 unless SECRET
-  printError `No env. variable ${C.blueBright 'NOTIZ_SECRET'} detected!`
+  logger.error `No env. variable ${C.blueBright 'NOTIZ_SECRET'} detected!`
   stdout.write 'Set it to a secret string to encrypt your database auth\n'
   exit 1
 
@@ -42,35 +39,37 @@ choices := ['id', 'content', 'createdAt', 'expiresAt']
 noop : boolean .= false
 
 process.on 'SIGINT', ->
-  printError 'Aborting...'
+  logger.error 'Aborting...'
   exit 0
 
 auth := : Promise<void> ->
   return if noop
   stdout.write BANNER + '\n'
-  printWarning 'WARN!'
+  logger.warn 'WARN!'
   stdout.write 'No database config found, asking for one...\n\n'
-  printDimmed 'URL of the database:'
-  url := readStdin() |> await
+  url := prompts.input 'URL of the database\n '
+    |> await
+    |> .trim()
   unless url
-    printError 'No URL entered'
+    logger.error 'No URL entered'
     exit 1
-  printDimmed '\nDatabase auth token:'
-  authToken := readStdin() |> await
+  stdout.write '\n'
+  authToken := prompts.secret 'Database auth token\n '
+    |> await
+    |> .trim()
   unless authToken
-    printError '\nNo auth token entered'
+    logger.error '\nNo auth token entered'
     exit 1
-
   try
     instance := new Auth url, authToken
     await instance.createDbCredentials()
     noop = true
-    printSuccess '\nDatabase config saved...\n'
-    printWaiting 'Applying database migration...'
+    logger.success '\nDatabase config saved...\n'
+    logger.waiting 'Applying database migration...'
     await import './lib/db/migrate.civet'
   catch error
-    printError '\nFailed to write database config\n'
-    printError (error as Error).message
+    logger.error '\nFailed to write database config\n'
+    logger.error (error as Error).message
     exit 1
 
 unless fs.existsSync DATABASE_CONFIG_PATH
@@ -78,12 +77,6 @@ unless fs.existsSync DATABASE_CONFIG_PATH
 
 db := unless 'auth' is in argv
   createClient() |> await |> .db
-
-readStdin := ->
-  for await chunk of Bun.stdin.stream()
-    if chunk
-      return chunk |> Buffer.from |> .toString().trim()
-  void 0
 
 sortBy := (field: string) ->
   (orig: any, comp: any) ->
@@ -114,21 +107,21 @@ formatExpiresAt := (createdAt: dayjs.Dayjs, expires: string) ->
 
 configure := (args?: ArgumentsCamelCase<{ option?: 'editor' | (string & {}), value?: string }>) ->
   unless args?.option and args?.value
-    printError 'No option or value entered'
+    logger.error 'No option or value entered'
     exit 1
   currentOptions : NotizOptions := OPTIONS_FILE
     |> .json()
     |> await
   currentOptions[args.option as keyof NotizOptions] = args.value
-  printSuccess `Option "${args.option}" configured`
+  logger.success `Option "${args.option}" configured`
   await Bun.write OPTIONS_FILE, JSON.stringify currentOptions
   void 0
 
 search := (args?: ArgumentsCamelCase<{ content?: string, sort?: string, sortdesc?: string }>) ->
   unless args?.content
-    printError 'No search term entered'
+    logger.error 'No search term entered'
     exit 1
-  printInfo 'Searching notes...'
+  logger.info 'Searching notes...'
   try
     rows := db!.select()
       |> .from notes
@@ -136,8 +129,8 @@ search := (args?: ArgumentsCamelCase<{ content?: string, sort?: string, sortdesc
       |> await
     printNotes rows, args
   catch error
-    printError 'Failed to search notes'
-    printError (error as Error).message
+    logger.error 'Failed to search notes'
+    logger.error (error as Error).message
     exit 1
   void 0
 
@@ -147,7 +140,7 @@ type PrintNotesOptions
 printNotes := (notesList: SelectNote[], args?: ArgumentsCamelCase<{ sort?: string, sortdesc?: string }>, options?: PrintNotesOptions) ->
   length := notesList.length
   if length is 0
-    printSuccess C.bold 'No notes found'
+    logger.success C.bold 'No notes found'
     exit 0
   markdown .= ''
   expired : number[] := []
@@ -164,7 +157,7 @@ printNotes := (notesList: SelectNote[], args?: ArgumentsCamelCase<{ sort?: strin
         expiresAt: expiresAt?.toLocaleString() or ''
       }
   unless expired.length is 0
-    printWarning 'Some notes have expired'
+    logger.warn 'Some notes have expired'
     await deleteByIds expired
   sort := args?.sort or args?.sortdesc
   isDescending := args?.sortdesc is sort
@@ -172,7 +165,7 @@ printNotes := (notesList: SelectNote[], args?: ArgumentsCamelCase<{ sort?: strin
     rows = (isDescending ? sortByDesc : sortBy) sort |> rows.sort
   unless options?.disableHeader
     stdout.write C.dim '-\n'
-    printSuccess C.bold 'Notes:'
+    logger.success C.bold 'Notes:'
   for { id, content, createdAt, expiresAt }, index of rows
     markdown += `# ${id}
 
@@ -188,24 +181,24 @@ ${index < length - 1 ? '\n---\n' : ''}`
 
 listAll := (args?: ArgumentsCamelCase<{ sort?: string, sortdesc?: string }>) ->
   try
-    printInfo 'Loading notes...'
+    logger.info 'Loading notes...'
     allNotes := db!.select()
       |> .from notes
       |> await
     printNotes allNotes, args
   catch error
-    printError 'Failed to load notes'
-    printError (error as Error).message
+    logger.error 'Failed to load notes'
+    logger.error (error as Error).message
     exit 1
   void 0
 
 view := (args?: ArgumentsCamelCase<{ id?: number, contentOnly?: boolean }>) ->
   id := args?.id
   unless id
-    printError 'No note ID entered'
+    logger.error 'No note ID entered'
     exit 1
   unless Number.isInteger id
-    printError 'Note ID must be an integer'
+    logger.error 'Note ID must be an integer'
     exit 1
   try
     notesView := db!.select()
@@ -214,27 +207,27 @@ view := (args?: ArgumentsCamelCase<{ id?: number, contentOnly?: boolean }>) ->
       |> await
       |> &.0
     unless notesView
-      printError 'Note not found'
+      logger.error 'Note not found'
       exit 1
     if args?.contentOnly
       stdout.write notesView.content
     else
       printNotes [notesView], args, { +disableHeader }
   catch error
-    printError 'Failed to view note'
-    printError (error as Error).message
+    logger.error 'Failed to view note'
+    logger.error (error as Error).message
     exit 1
   void 0
 
 deleteByIds := (ids?: (string | number)[]) ->
   unless ids?.length
-    printError 'No note ID entered'
+    logger.error 'No note ID entered'
     exit 1
   shouldDeleteAll := ids.length is 1 and ids.0 is 'all'
   unless shouldDeleteAll
     ids = ids.map Number
     unless ids.every Number.isInteger
-      printError 'Every note ID must be an integer'
+      logger.error 'Every note ID must be an integer'
       exit 1
   try
     db!.delete notes
@@ -247,17 +240,17 @@ deleteByIds := (ids?: (string | number)[]) ->
     unless shouldDeleteAll
       listAll()
   catch error
-    printError (error as Error).message
+    logger.error (error as Error).message
     exit 1
   void 0
 
 update := (args?: ArgumentsCamelCase<{ id?: number; expires?: string }>) ->
   id := args?.id
   unless id
-    printError 'No note ID entered'
+    logger.error 'No note ID entered'
     exit 1
   unless Number.isInteger id
-    printError 'Note ID must be an integer'
+    logger.error 'Note ID must be an integer'
     exit 1
   current := db!.select { notes.content }
     |> .from notes
@@ -266,7 +259,7 @@ update := (args?: ArgumentsCamelCase<{ id?: number; expires?: string }>) ->
     |> &.0
   content := await openOnEditor current.content
   unless content
-    printError 'No note entered'
+    logger.error 'No note entered'
     exit 1
   try
     expiresAt := if args?.expires then formatExpiresAt dayjs(), args.expires
@@ -282,9 +275,9 @@ update := (args?: ArgumentsCamelCase<{ id?: number; expires?: string }>) ->
   catch error
     switch (error as Error).message
       /UNIQUE constraint/
-        printError 'Note already exists'
+        logger.error 'Note already exists'
       else
-        printError (error as Error).message
+        logger.error (error as Error).message
     exit 1
   void 0
 
@@ -297,7 +290,7 @@ create := (args?: ArgumentsCamelCase<{ note?: string[]; expires?: string }>) ->
     [...items]
       items.join ' '
   unless content  
-    printError 'No note entered'
+    logger.error 'No note entered'
     exit 1
   try
     expiresAt = if args?.expires then formatExpiresAt createdAt, args.expires
@@ -312,9 +305,9 @@ create := (args?: ArgumentsCamelCase<{ note?: string[]; expires?: string }>) ->
   catch error
     switch (error as Error).message
       /UNIQUE constraint/
-        printError 'Note already exists'
+        logger.error 'Note already exists'
       else
-        printError (error as Error).message
+        logger.error (error as Error).message
     exit 1
   void 0
 
