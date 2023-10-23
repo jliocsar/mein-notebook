@@ -33,7 +33,7 @@ export class Auth
       uri
         |> createClient
         |> notesCollection
-        |> .createIndex { content: 1 }, { unique: true }
+        |> .createIndex { content: 1, createdAt: 1, updatedAt: 1 }, { unique: true }
         |> await
       void 0
     catch error
