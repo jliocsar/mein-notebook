@@ -2,6 +2,7 @@ fs from node:fs
 path from node:path
 { argv, stdout, exit } from node:process
 
+type { ObjectId } from mongodb
 type { ArgumentsCamelCase } from yargs
 yargs from yargs/yargs
 dayjs from dayjs
@@ -9,14 +10,12 @@ dayjs from dayjs
 cliMd from cli-markdown
 * as C from colorette
 { hideBin } from yargs/helpers
-type { ObjectId } from mongodb
 
-{ upgrade } from ./upgrade.civet
-{ createClient } from ./lib/db/client.civet
+type { Note } from ./lib/db/schema.civet
+{ createClient, notesCollection } from ./lib/db/client.civet
 { Prompt } from ./lib/prompt.civet
 { authInstance } from ./lib/auth.civet
 { logger } from ./lib/logger.civet
-{ openOnEditor } from ./lib/editor.civet
 {
   BANNER
   DATABASE_CONFIG_PATH
@@ -30,8 +29,6 @@ type WithId<T> =
 
 type NotizOptions
   editor: string
-
-prompts := new Prompt
 
 unless SECRET
   logger.error `No env. variable ${C.blueBright 'NOTIZ_SECRET'} detected!`
@@ -50,6 +47,7 @@ auth := : Promise<void> ->
   stdout.write BANNER + '\n'
   logger.warn 'WARN!'
   stdout.write 'No database config found, asking for one...\n\n'
+  prompts := new Prompt
   uri := prompts.secret 'URI of the database\n '
     |> await
     |> .trim()
@@ -60,7 +58,7 @@ auth := : Promise<void> ->
   try
     await authInstance.createDbCredentials uri
     noop = true
-    logger.success 'Database config saved...'
+    logger.success 'Database config saved...\n' 
   catch error
     logger.error 'Failed to write database config'
     logger.error (error as Error).message
@@ -69,10 +67,6 @@ auth := : Promise<void> ->
 unless fs.existsSync DATABASE_CONFIG_PATH
   await auth()
 
-type Note
-  content: string
-  createdAt: Date
-  expiresAt?: Date
 type ProjectedNoteShortId =
   id: ObjectId
   shortId: string
@@ -81,13 +75,11 @@ type PrintNotesOptions
   disableHeader?: boolean
 
 collection := unless 'auth' is in argv
-  createClient()
-    |> await |> .connect()
-    |> await |> .db 'notiz'
-    |> .collection<Note> 'notes'
-
-if collection
-  await collection.createIndex { content: 1 }, { unique: true }
+  authInstance.readDbCredentials()
+    |> await
+    |> .uri
+    |> createClient
+    |> notesCollection
 
 NOTE_SHORT_ID_PROJECTION := {
   _id: 0
@@ -168,15 +160,15 @@ search := (args?: ArgumentsCamelCase<{ content?: string, sort?: string, sortdesc
     logger.error (error as Error).message
     exit 1
 
-printNotes := (notesList: WithId<Note>[], args?: ArgumentsCamelCase<{ sort?: string, sortdesc?: string }>, options?: PrintNotesOptions) : Promise<void> ->
-  length := notesList.length
+printNotes := (notes: WithId<Note>[], args?: ArgumentsCamelCase<{ sort?: string, sortdesc?: string }>, options?: PrintNotesOptions) : Promise<void> ->
+  length := notes.length
   if length is 0
     logger.success C.bold 'No notes found'
     exit 0
   markdown .= ''
   expired : ObjectId[] := []
   rows : WithId<Omit<Note, 'createdAt' | 'expiresAt'> & { createdAt: string; expiresAt: string }>[] .= []
-  for { id, content, createdAt, expiresAt } of notesList
+  for { id, content, createdAt, expiresAt } of notes
     hasExpired := expiresAt and expiresAt < new Date()
     if hasExpired
       expired.push id
@@ -213,12 +205,12 @@ ${index < length - 1 ? '\n---\n' : ''}`
 listAll := (args?: ArgumentsCamelCase<{ sort?: string, sortdesc?: string }>) : Promise<void> ->
   try
     logger.info 'Loading notes...'
-    allNotes := collection!
+    notes := collection!
       |> .find<ProjectedNote> {},
           projection: NOTE_FIND_PROJECTION
       |> .toArray()
       |> await
-    await printNotes allNotes, args
+    await printNotes notes, args
   catch error
     logger.error 'Failed to load notes'
     logger.error (error as Error).message
@@ -252,13 +244,13 @@ view := (args?: ArgumentsCamelCase<{ id?: string, contentOnly?: boolean }>) : Pr
     exit 1
 
 mapShortNotesIds := ->
-  allNotes := collection!
+  notes := collection!
     |> .find<ProjectedNoteShortId> {},
         projection: NOTE_SHORT_ID_PROJECTION
     |> .toArray()
     |> await
   map := new Map<string, ObjectId>()
-  for note of allNotes
+  for note of notes
     map.set note.shortId, note.id
   map
 
@@ -289,6 +281,7 @@ update := (args?: ArgumentsCamelCase<{ id?: string; expires?: string }>) : Promi
     logger.error 'No note ID entered'
     exit 1
   try
+    { openOnEditor } := await import './lib/editor.civet'
     map := await mapShortNotesIds()
     id := map.get shortId
     unless id
@@ -322,6 +315,7 @@ create := (args?: ArgumentsCamelCase<{ note?: string[]; expires?: string }>) : P
   createdAt := dayjs()
   expiresAt .= null
   try
+    { openOnEditor } := await import './lib/editor.civet'
     content := switch args?.note
       []
         await openOnEditor()
@@ -357,6 +351,7 @@ yargs hideBin argv
   |> .command 'upgrade', 'Upgrades the command to its latest version',
     ->
     -> 
+      { upgrade } := await import './upgrade.civet'
       upgrade()
       exit 0
   |> .command 'auth', 'Updates the database access configuration',

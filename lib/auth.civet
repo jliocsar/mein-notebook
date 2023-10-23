@@ -29,6 +29,13 @@ export class Auth
       data := { uri } |> JSON.stringify
       await Bun.write DATABASE_CONFIG_PATH, data
       await @crypt.encrypt()
+      { createClient, notesCollection } := await import './db/client.civet'
+      uri
+        |> createClient
+        |> notesCollection
+        |> .createIndex { content: 1 }, { unique: true }
+        |> await
+      void 0
     catch error
       fs.rmSync NOTIZ_PATH, recursive: true
       throw error

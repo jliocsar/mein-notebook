@@ -2,11 +2,11 @@
 // @ts-expect-error - no types
 { register } from on-exit-leak-free
 
-{ authInstance } from ../auth.civet
+type { Note } from ./schema.civet
 
-export createClient := ->
-  { uri } := await authInstance.readDbCredentials()
+export createClient := (uri: string) ->
   client := new MongoClient uri,
+    family: 4
     serverApi:
       version: ServerApiVersion.v1
       strict: true
@@ -14,3 +14,8 @@ export createClient := ->
   register client, ->
     client.close true
   client
+
+export notesCollection := (client: MongoClient) ->
+  client
+    |> .db 'notiz'
+    |> .collection<Note> 'notes'
