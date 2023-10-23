@@ -1,0 +1,18 @@
+type { ObjectId } from mongodb
+
+export type WithId<T> =
+  T &
+    id: ObjectId
+
+encoder := new TextEncoder()
+
+export class ObjectIdUtils
+  @lastBytesOf(value: string, length: number)
+    encoder
+      |> .encode(value)
+      |> .slice(-length)
+
+  @objectIdAlias(id: ObjectId)
+    @lastBytesOf id.toHexString(), 3
+      |> Buffer.from
+      |> .toString()

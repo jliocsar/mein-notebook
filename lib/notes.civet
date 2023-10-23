@@ -1,0 +1,281 @@
+{ argv, stdout, exit } from node:process
+
+type { ObjectId, Collection } from mongodb
+type { ArgumentsCamelCase } from yargs
+dayjs from dayjs
+// @ts-expect-error - no types
+cliMd from cli-markdown
+* as C from colorette
+
+type { Note, ProjectedNote, ProjectedNoteShortId } from ./db/schema.civet
+{ createClient, notesCollection } from ./db/client.civet
+{ type WithId, ObjectIdUtils } from ./db/utils.civet
+{ Prompt } from ./prompt.civet
+{ authInstance } from ./auth.civet
+{ logger } from ./logger.civet
+{ BANNER, OPTIONS_FILE } from ./const.civet
+{ DateUtils, SortUtils } from ./utils.civet
+
+type NotizOptions
+  editor: string
+type PrintNotesOptions
+  disableHeader?: boolean
+
+export NOTE_FIELD_CHOICES := ['id', 'content', 'createdAt', 'expiresAt']
+NOTE_SHORT_ID_PROJECTION := {
+  _id: 0
+  id: '$_id'
+  shortId: { $substr: [{ $toString: '$_id' }, 21, 24] }
+} as const
+NOTE_FIND_PROJECTION := Object.assign {
+  content: 1
+  createdAt: 1
+  expiresAt: 1
+} as const, NOTE_SHORT_ID_PROJECTION
+
+export class Notes
+  private collection?: Collection<Note>
+  private authNoop = false
+
+  setup()
+    @collection := unless 'auth' is in argv
+      authInstance.readDbCredentials()
+        |> await
+        |> .uri
+        |> createClient
+        |> notesCollection
+    @
+
+  configure(args?: ArgumentsCamelCase<{ option?: 'editor' | (string & {}), value?: string }>) : Promise<void>
+    unless args?.option and args?.value
+      logger.error 'No option or value entered'
+      exit 1
+    currentOptions : NotizOptions := OPTIONS_FILE
+      |> .json()
+      |> await
+    currentOptions[args.option as keyof NotizOptions] = args.value
+    logger.success `Option "${args.option}" configured`
+    await Bun.write OPTIONS_FILE, JSON.stringify currentOptions
+    void 0
+
+  printNotes(notes: WithId<Note>[], args?: ArgumentsCamelCase<{ sort?: string, sortdesc?: string }>, options?: PrintNotesOptions) : Promise<void>
+    length := notes.length
+    if length is 0
+      logger.success C.bold 'No notes found'
+      exit 0
+    markdown .= ''
+    expired : ObjectId[] := []
+    rows : WithId<Omit<Note, 'createdAt' | 'expiresAt'> & { createdAt: string; expiresAt: string }>[] .= []
+    for { id, content, createdAt, expiresAt } of notes
+      hasExpired := expiresAt and expiresAt < new Date()
+      if hasExpired
+        expired.push id
+      else
+        rows.push {
+          id
+          content
+          createdAt: createdAt.toLocaleString()
+          expiresAt: expiresAt?.toLocaleString() or ''
+        }
+    unless expired.length is 0
+      logger.warn 'Some notes have expired'
+      await @collection!.deleteMany
+        _id: { $in: expired }
+    sort := args?.sort or args?.sortdesc
+    isDescending := args?.sortdesc is sort
+    if sort and sort is in NOTE_FIELD_CHOICES
+      rows = (isDescending ? SortUtils.sortByDesc : SortUtils.sortBy) sort |> rows.sort
+    unless options?.disableHeader
+      logger.clearPL()
+      logger.success C.bold 'Notes:'
+    for { id, content, createdAt, expiresAt }, index of rows
+      markdown += `# ${ObjectIdUtils.objectIdAlias id}
+
+  ${content}
+
+  ${C.dim 'Created at ' + createdAt.toLocaleString()}
+  ${expiresAt ? C.dim `- Expires at ${expiresAt}` : ''}
+  ${index < length - 1 ? '\n\n---\n\n' : ''}`
+    markdown
+      |> cliMd
+      |> stdout.write
+    void 0
+
+  deleteByShortIds(shortIds?: string[]) : Promise<void>
+    unless shortIds?.length
+      logger.error 'No note ID entered'
+      exit 1
+    shouldDeleteAll := shortIds.length is 1 and shortIds.0 is 'all'
+    try
+      if shouldDeleteAll
+        await @collection!.deleteMany {}
+        return
+      map := await @mapShortNotesIds()
+      idsToDelete : ObjectId[] := []
+      for shortId of shortIds
+        if map.has shortId
+          idsToDelete.push map.get(shortId)!
+      unless idsToDelete.length is 0
+        await @collection!.deleteMany _id: { $in: idsToDelete }
+      await @listAll()
+    catch error
+      logger.error (error as Error).message
+      exit 1
+
+  update(args?: ArgumentsCamelCase<{ id?: string; expires?: string }>) : Promise<void>
+    shortId := args?.id
+    unless shortId
+      logger.error 'No note ID entered'
+      exit 1
+    try
+      { openOnEditor } := await import './editor.civet'
+      map := await @mapShortNotesIds()
+      id := map.get shortId
+      unless id
+        logger.error 'Note not found'
+        exit 1
+      current := @collection!
+        |> .findOne<Pick<Note, 'content'>>
+          { _id: id }
+          projection: { content: 1 }
+        |> await
+      content := current!.content
+        |> openOnEditor
+        |> await
+      expiresAt := if args?.expires then DateUtils.formatExpiresAt dayjs(), args.expires
+      await @collection!.updateOne
+        { _id: id }
+        $set: {
+          content,
+          ...(expiresAt instanceof Date and { expiresAt })
+        }
+      await @listAll()
+    catch error
+      switch (error as Error).message
+        /UNIQUE constraint/
+          logger.error 'Note already exists'
+        else
+          logger.error (error as Error).message
+      exit 1
+
+  create(args?: ArgumentsCamelCase<{ note?: string[]; expires?: string }>) : Promise<void>
+    createdAt := dayjs()
+    expiresAt .= null
+    try
+      { openOnEditor } := await import './editor.civet'
+      content := switch args?.note
+        []
+          await openOnEditor()
+        [...items]
+          items.join ' '
+      unless content  
+        logger.error 'No note entered'
+        exit 1
+      expiresAt = if args?.expires then DateUtils.formatExpiresAt createdAt, args.expires
+      await @collection!.insertOne {
+        content,
+        createdAt: createdAt.toDate(),
+        ...(expiresAt instanceof Date and { expiresAt })
+      }
+      await @listAll()
+    catch error
+      switch (error as Error).message
+        /UNIQUE constraint/
+          logger.error 'Note already exists'
+        else
+          logger.error (error as Error).message
+      exit 1
+
+  view(args?: ArgumentsCamelCase<{ id?: string, contentOnly?: boolean }>) : Promise<void>
+    shortId := args?.id
+    unless shortId
+      logger.error 'No note ID entered'
+      exit 1
+    try
+      map := await @mapShortNotesIds()
+      id := map.get shortId
+      unless id
+        logger.error 'Note not found'
+        exit 1
+      note := @collection!
+        |> .findOne<ProjectedNote> { _id: id },
+            projection: NOTE_FIND_PROJECTION
+        |> await
+      unless note
+        logger.error 'Note not found'
+        exit 1
+      if args?.contentOnly
+        stdout.write note.content
+      else
+        await @printNotes [note], args, { +disableHeader }
+    catch error
+      logger.error 'Failed to view note'
+      logger.error (error as Error).message
+      exit 1
+    void 0
+
+  listAll(args?: ArgumentsCamelCase<{ sort?: string, sortdesc?: string }>) : Promise<void>
+    try
+      logger.info 'Loading notes...'
+      notes := @collection!
+        |> .find<ProjectedNote> {},
+            projection: NOTE_FIND_PROJECTION
+        |> .toArray()
+        |> await
+      await @printNotes notes, args
+    catch error
+      logger.error 'Failed to load notes'
+      logger.error (error as Error).message
+      exit 1
+
+  search(args?: ArgumentsCamelCase<{ content?: string, sort?: string, sortdesc?: string }>) : Promise<void>
+    unless args?.content
+      logger.error 'No search term entered'
+      exit 1
+    logger.info 'Searching notes...'
+    try
+      rows := @collection!
+        |> .find<ProjectedNote>
+          { content: { $regex: new RegExp args.content, 'i' } }
+          projection: NOTE_FIND_PROJECTION
+        |> .toArray()
+        |> await
+      await @printNotes rows, args
+    catch error
+      logger.error 'Failed to search notes'
+      logger.error (error as Error).message
+      exit 1
+
+  auth(): Promise<void>
+    return if @authNoop
+    stdout.write BANNER + '\n'
+    logger.warn 'WARN!'
+    stdout.write 'No database config found, asking for one...\n\n'
+    prompts := new Prompt
+    uri := prompts.secret 'URI of the database\n '
+      |> await
+      |> .trim()
+    unless uri
+      logger.error 'No URI entered'
+      exit 1
+    stdout.write '\n'
+    try
+      await authInstance.createDbCredentials uri
+      @authNoop = true
+      logger.success 'Database config saved...\n'
+    catch error
+      logger.error 'Failed to write database config'
+      logger.error (error as Error).message
+      exit 1
+    void 0
+
+  private mapShortNotesIds()
+    notes := @collection!
+      |> .find<ProjectedNoteShortId> {},
+          projection: NOTE_SHORT_ID_PROJECTION
+      |> .toArray()
+      |> await
+    map := new Map<string, ObjectId>()
+    for note of notes
+      map.set note.shortId, note.id
+    map

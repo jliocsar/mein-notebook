@@ -5,6 +5,9 @@
 class Logger
   private out := stdout.write.bind stdout
 
+  clearPL()
+    @out '\x1b[1A\x1b[2K'
+
   success(message: string)
     @out `${C.bold C.greenBright '✓'} ${message}\n`
 

@@ -1,0 +1,30 @@
+dayjs from dayjs
+
+export class DateUtils
+  @formatExpiresAt(createdAt: dayjs.Dayjs, expires: string)
+    [time, rawPeriod] := expires
+      |> .split /^(\d+)\s*(\w+)$/
+      |> .filter Boolean
+    unless rawPeriod
+      return null
+    period := rawPeriod.replace /s$/, ''
+    createdAt
+      |> .add
+        Number time
+        period as dayjs.ManipulateType
+      |> .toDate()
+
+export class SortUtils
+  @sortBy(field: string)
+    (orig: any, comp: any) ->
+      unless orig[field] and comp[field]
+        0
+      else
+        orig[field]! > comp[field]! ? 1 : -1
+
+  @sortByDesc(field: string)
+    (orig: any, comp: any) ->
+      unless orig[field] and comp[field]
+        0
+      else
+        orig[field]! < comp[field]! ? 1 : -1

@@ -1,4 +1,13 @@
+type { ObjectId } from mongodb
+
 export type Note
   content: string
   createdAt: Date
   expiresAt?: Date
+
+export type ProjectedNoteShortId =
+  id: ObjectId
+  shortId: string
+
+export type ProjectedNote
+  Note & ProjectedNoteShortId

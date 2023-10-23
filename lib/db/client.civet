@@ -6,7 +6,9 @@ type { Note } from ./schema.civet
 
 export createClient := (uri: string) ->
   client := new MongoClient uri,
+    appName: 'notiz'
     family: 4
+    maxPoolSize: 10
     serverApi:
       version: ServerApiVersion.v1
       strict: true
