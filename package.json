@@ -1,6 +1,6 @@
 {
   "name": "@jliocsar/notiz-cli",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "main": "notiz.ts",
   "type": "module",
   "bin": {
@@ -8,7 +8,7 @@
   },
   "scripts": {
     "start": "bun run --bun index.civet",
-    "transpile": "civet -c *.civet lib/*.civet lib/db/*.civet && sed -i 's/.civet/.civet.tsx/g' *.tsx lib/*.tsx lib/db/*.tsx",
+    "transpile": "civet -c *.civet lib/*.civet lib/db/*.civet lib/utils/*.civet && sed -i 's/.civet/.civet.tsx/g' *.tsx lib/*.tsx lib/db/*.tsx lib/utils/*.tsx",
     "postinstall": "bun transpile"
   },
   "devDependencies": {
