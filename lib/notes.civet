@@ -140,7 +140,7 @@ export class Notes
       argsIds := args?.id
       unless argsIds?.length
         throw new Error 'No note ID entered'
-      ids := []
+      ids : ObjectId[] := []
       switch argsIds
         ['last']
           ids.push await @findLastEditedId()
@@ -150,12 +150,10 @@ export class Notes
           map := await @mapShortNotesIds()
           for shortId of argsIds
             if map.has shortId
-              ids.push map.get(shortId)
+              ids.push map.get(shortId)!
       notes := @collection!
         |> .find<WithId<Note>>
-          { ...(ids.length and {
-            _id: ids
-          }) }
+          { ...(ids.length and { _id: { $in: ids } }) }
           projection: NOTE_FIND_PROJECTION
         |> .toArray()
         |> await
