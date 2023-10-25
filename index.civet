@@ -35,16 +35,16 @@ yargs hideBin argv
       |> .json()
       |> await
       |> .version
-  |> .command 'upgrade', 'Upgrades the command to its latest version',
+  |> .command ['upgrade', 'u'], 'Upgrades the command to its latest version',
     ->, -> 
       { upgrade } := await import './upgrade.civet'
       upgrade()
       exit 0
-  |> .command 'auth', 'Updates the database access configuration',
+  |> .command ['auth', 'a'], 'Updates the database access configuration',
     ->, ->
       await $.auth()
       exit 0
-  |> .command 'configure <option> <value>', 'Configures the CLI options',
+  |> .command ['configure <option> <value>', 'conf'], 'Configures the CLI options',
     (yargs) -> yargs
       |> .positional 'option', {
           choices: ['editor']
@@ -55,23 +55,25 @@ yargs hideBin argv
     (args) ->
       args |> $.configure |> await
       exit 0
-  |> .command 'search <content>', 'Search notes by content',
+  |> .command ['search <content>', 's'], 'Search notes by content',
     (yargs) -> yargs
       |> .positional 'content', { describe: 'Note content', type: 'string' }
       |> .option 'sort', {
           choices: NOTE_FIELD_CHOICES
           describe: 'Field to sort ascending by'
           type: 'string'
+          alias: 's'
         }
       |> .option 'sortdesc', {
           choices: NOTE_FIELD_CHOICES
           describe: 'Field to sort descending by'
           type: 'string'
+          alias: 'sd'
         }
     (args) ->
       args |> $.search |> await
       exit 0
-  |> .command 'list', 'List all notes',
+  |> .command ['preview', 'p'], 'Preview all notes',
     (yargs) -> yargs
       |> .option 'sort', {
           choices: NOTE_FIELD_CHOICES
@@ -84,30 +86,40 @@ yargs hideBin argv
           type: 'string'
         }
     (args) ->
-      args |> $.listAll |> await
+      args |> $.preview |> await
       exit 0
-  |> .command 'delete <id...>', 'Delete note(s) by ID(s)',
+  |> .command ['delete <id...>', 'd'], 'Delete note(s) by ID(s)',
     (yargs) -> yargs
       |> .positional 'id', { describe: 'Note id(s) ("all" to delete all)', type: 'string', +array }
     (args) ->
       args.id |> $.deleteByShortIds |> await
       exit 0
-  |> .command 'open <id>', 'Opens a note by its ID',
+  |> .command ['open <id>', 'o', 'e'], 'Opens a note by its ID',
     (yargs) -> yargs
       |> .positional 'id', { describe: 'Note id ("last" to open the last one)', type: 'string' }
-      |> .option 'expires', { describe: 'Sets a new note expiration time', type: 'string', alias: 'e', -required }
+      |> .option 'expires', {
+          describe: 'Sets a new note expiration time'
+          type: 'string'
+          alias: 'e'
+          -required
+        }
     (args) ->
       args |> $.open |> await
       exit 0
-  |> .command 'view <id...>', 'Views note(s) by ID(s)',
+  |> .command ['view [id...]', 'v', 'l'], 'Views note(s) by ID(s)',
     (yargs) -> yargs
-      |> .positional 'id', { describe: 'Note id(s) ("last" to view the last one, "all" to view all)', type: 'string', +array }
+      |> .positional 'id', { describe: 'Note id(s) ("last" to view the last one, none to view all)', type: 'string', +array }
     (args) ->
       args |> $.view |> await
       exit 0
-  |> .command 'create', 'Create a note',
+  |> .command ['create', 'c', 'n'], 'Create a note',
     (yargs) -> yargs
-      |> .option 'expires', { describe: 'Note expiration time', type: 'string', alias: 'e', -required }
+      |> .option 'expires', {
+        describe: 'Note expiration time'
+        type: 'string'
+        alias: 'e'
+        -required
+      }
     (args) ->
       args |> $.create |> await
       exit 0

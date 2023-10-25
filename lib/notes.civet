@@ -71,50 +71,6 @@ export class Notes
     await Bun.write OPTIONS_FILE, JSON.stringify currentOptions
     void 0
 
-  printNotesPreview(notes: WithId<Note>[], args?: ArgumentsCamelCase<{ sort?: string, sortdesc?: string }>, options?: printNotesPreviewOptions) : Promise<void>
-    length := notes.length
-    if length is 0
-      logger.clearPL()
-      logger.success C.bold 'No notes found'
-      exit 0
-    markdown .= ''
-    expired : ObjectId[] := []
-    rows : WithId<Pick<Note, 'title' | 'createdAt' | 'expiresAt'>>[] .= []
-    for { id, title, createdAt, expiresAt } of notes
-      hasExpired := expiresAt and expiresAt < new Date()
-      if hasExpired
-        expired.push id
-      else
-        rows.push {
-          id
-          title
-          createdAt
-          expiresAt
-        }
-    unless expired.length is 0
-      logger.clearPL()
-      logger.warn 'Some notes have expired'
-      await @collection!.deleteMany
-        _id: { $in: expired }
-    sort := args?.sort or args?.sortdesc
-    isDescending := args?.sortdesc is sort
-    if sort and sort is in NOTE_FIELD_CHOICES
-      rows = (isDescending ? SortUtils.sortByDesc : SortUtils.sortBy) sort |> rows.sort
-    unless options?.disableHeader
-      logger.clearPL()
-      logger.success C.bold 'Notes:'
-    for { id, title, createdAt, expiresAt } of rows
-      markdown += StringUtils.format(PREVIEW_NOTE_TEMPLATE, {
-        title
-        createdAt: C.dim `created at ${createdAt.toLocaleString()}`
-        expiresAt: expiresAt ? C.dim `\n  - expires at ${expiresAt.toLocaleString()}` : ''
-        shortId: C.redBright ObjectIdUtils.objectIdAlias id
-      }) + '\n'
-    markdown
-      |> cliMd
-      |> stdout.write
-    void 0
-
   deleteByShortIds(shortIds?: string[]) : Promise<void>
     try
       unless shortIds?.length
@@ -130,21 +86,20 @@ export class Notes
           idsToDelete.push map.get(shortId)!
       unless idsToDelete.length is 0
         await @collection!.deleteMany _id: { $in: idsToDelete }
-      await @listAll()
+      await @preview()
     catch error
       logger.error (error as Error).message
       exit 1
 
   view(args?: ArgumentsCamelCase<{ id?: string[] }>) : Promise<void>
     try
-      argsIds := args?.id
-      unless argsIds?.length
-        throw new Error 'No note ID entered'
+      logger.info 'Loading notes...'
+      argsIds := args?.id ?? []
       ids : ObjectId[] := []
       switch argsIds
         ['last']
           ids.push await @findLastEditedId()
-        ['all']
+        []
           // no-op
         else
           map := await @mapShortNotesIds()
@@ -159,21 +114,9 @@ export class Notes
         |> await
       if notes.length is 0
         throw new Error 'No note not found'
-      content := notes
-        |> .map (note) ->
-          StringUtils.format NOTE_VIEW_TEMPLATE, {
-            note.title
-            note.content
-            shortId: ObjectIdUtils.objectIdAlias note.id
-            createdAt: C.dim `Created at ${note.createdAt.toLocaleString()}`
-            expiresAt: note.expiresAt ? C.dim `Expires at ${note.expiresAt.toLocaleString()}` : ''
-          }
-        |> .join '\n---\n'
-      content
-        |> cliMd
-        |> stdout.write
-      void 0
+      @printNotes notes
     catch error
+      logger.clearPL()
       logger.error (error as Error).message
       exit 1
 
@@ -253,7 +196,7 @@ export class Notes
         updatedAt: createdAt.toDate()
         ...(expiresAt instanceof Date and { expiresAt })
       }
-      await @listAll()
+      await @preview()
     catch error
       switch (error as Error).message
         /UNIQUE constraint/
@@ -262,9 +205,9 @@ export class Notes
           logger.error (error as Error).message
       exit 1
 
-  listAll(args?: ArgumentsCamelCase<{ sort?: string, sortdesc?: string }>) : Promise<void>
+  preview(args?: ArgumentsCamelCase<{ sort?: string, sortdesc?: string }>) : Promise<void>
     try
-      logger.info 'Loading notes...'
+      logger.info 'Loading preview...'
       notes := @collection!
         |> .find<ProjectedNote> {},
             projection: NOTE_FIND_PROJECTION
@@ -272,7 +215,7 @@ export class Notes
         |> await
       await @printNotesPreview notes, args
     catch error
-      logger.error 'Failed to load notes'
+      logger.error 'Failed to load preview'
       logger.error (error as Error).message
       exit 1
 
@@ -315,6 +258,67 @@ export class Notes
       logger.error 'Failed to write database config'
       logger.error (error as Error).message
       exit 1
+    void 0
+
+  private printNotes(notes: WithId<Note>[])
+    logger.clearPL()
+    logger.success C.bold 'Notes:'
+    notes
+      |> .map (note) ->
+        StringUtils.format NOTE_VIEW_TEMPLATE, {
+          note.title
+          note.content
+          shortId: ObjectIdUtils.objectIdAlias note.id
+          createdAt: C.dim `Created at ${note.createdAt.toLocaleString()}`
+          expiresAt: note.expiresAt ? C.dim `Expires at ${note.expiresAt.toLocaleString()}` : ''
+        }
+      |> .join '\n---\n'
+      |> cliMd
+      |> stdout.write
+    void 0
+
+  private printNotesPreview(notes: WithId<Note>[], args?: ArgumentsCamelCase<{ sort?: string, sortdesc?: string }>, options?: printNotesPreviewOptions) : Promise<void>
+    length := notes.length
+    if length is 0
+      logger.clearPL()
+      logger.success C.bold 'No notes found'
+      exit 0
+    expired : ObjectId[] := []
+    rows : WithId<Pick<Note, 'title' | 'createdAt' | 'expiresAt'>>[] .= []
+    for { id, title, createdAt, expiresAt } of notes
+      hasExpired := expiresAt and expiresAt < new Date()
+      if hasExpired
+        expired.push id
+      else
+        rows.push {
+          id
+          title
+          createdAt
+          expiresAt
+        }
+    unless expired.length is 0
+      logger.clearPL()
+      logger.warn 'Some notes have expired'
+      await @collection!.deleteMany
+        _id: { $in: expired }
+    sort := args?.sort or args?.sortdesc
+    isDescending := args?.sortdesc is sort
+    if sort and sort is in NOTE_FIELD_CHOICES
+      rows = (isDescending ? SortUtils.sortByDesc : SortUtils.sortBy) sort |> rows.sort
+    unless options?.disableHeader
+      logger.clearPL()
+      logger.success C.bold 'Notes:'
+    rows
+      |> .map (row) ->
+        StringUtils.format PREVIEW_NOTE_TEMPLATE, {
+          row.title
+          createdAt: C.dim `created at ${row.createdAt.toLocaleString()}`
+          expiresAt: row.expiresAt ? C.dim `\n  - expires at ${row.expiresAt.toLocaleString()}` : ''
+          shortId: C.redBright ObjectIdUtils.objectIdAlias row.id
+        }
+      |> .join '\n'
+      |> cliMd
+      |> stdout.write
     void 0
 
   private findLastEditedId()

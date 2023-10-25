@@ -96,14 +96,16 @@ notiz <cmd> [options]
 
 Commands:
   notiz upgrade                     Upgrades the command to its latest version
+                                                                    [aliases: u]
   notiz auth                        Updates the database access configuration
-  notiz configure <option> <value>  Configures the CLI options
-  notiz search <content>            Search notes by content
-  notiz list                        List all notes
-  notiz delete <id...>              Delete note(s) by ID(s)
-  notiz open <id>                   Opens a note by its ID
-  notiz view <id...>                Views note(s) by ID(s)
-  notiz create                      Create a note
+                                                                    [aliases: a]
+  notiz configure <option> <value>  Configures the CLI options   [aliases: conf]
+  notiz search <content>            Search notes by content         [aliases: s]
+  notiz preview                     Preview all notes               [aliases: p]
+  notiz delete <id...>              Delete note(s) by ID(s)         [aliases: d]
+  notiz open <id>                   Opens a note by its ID       [aliases: o, e]
+  notiz view [id...]                Views note(s) by ID(s)       [aliases: v, l]
+  notiz create                      Create a note                [aliases: c, n]
 
 Options:
   --help     Show help                                                 [boolean]
@@ -115,23 +117,6 @@ Options:
 > If neither are present, Notiz will use [`nvim`][nvim-url] by default.
 >
 > Check more details about the editor priority [here](https://github.com/jliocsar/notiz/blob/main/lib/const.civet#L14-L19).
-
-### List
-
-Displays all notes in a table format.
-
-```
-notiz list
-
-List all notes
-
-Options:
-  --help      Show help                                                [boolean]
-  --sort      Field to sort ascending by
-                   [string] [choices: "id", "content", "createdAt", "expiresAt"]
-  --sortdesc  Field to sort descending by
-                   [string] [choices: "id", "content", "createdAt", "expiresAt"]
-```
 
 ### Create
 
@@ -145,6 +130,8 @@ The metadata part of the document will have a `title` field that's **required**,
 
 Each note can have an `expires at` date, which is a combination of `[value] [unit]`, the unit being any available from the [dayjs](https://day.js.org/docs/en/manipulate/add#list-of-all-available-units) library.
 
+> *Has the aliases* `c` *and* `n`.
+
 ```
 notiz create
 
@@ -152,6 +139,7 @@ Create a note
 
 Options:
       --help     Show help                                             [boolean]
+      --version  Show version number                                   [boolean]
   -e, --expires  Note expiration time                                   [string]
 ```
 
@@ -160,6 +148,8 @@ Options:
 Opens a note by its ID.
 
 Used for updating or just viewing a note.
+
+> *Has the alias* `o`.
 
 ```
 notiz open <id>
@@ -170,6 +160,7 @@ Positionals:
   id  Note id ("last" to open the last one)                  [string] [required]
 
 Options:
+      --help     Show help                                             [boolean]
       --version  Show version number                                   [boolean]
   -e, --expires  Sets a new note expiration time                        [string]
 ```
@@ -179,6 +170,8 @@ Options:
 Views note(s) by ID(s).
 
 Used for viewing the actual content of the note.
+
+> *Has the aliases* `v` *and* `l`.
 
 ```
 notiz view <id...>
@@ -199,6 +192,8 @@ Deletes note(s) by ID(s).
 
 You can either provide 1+ IDs to delete, or the string `"all"` to delete all notes.
 
+> *Has the alias* `d`.
+
 ```
 notiz delete <id...>
 
@@ -214,6 +209,8 @@ Options:
 ### Configure
 
 Configures the CLI options
+
+> *Has the alias* `conf`.
 
 ```
 notiz configure <option> <value>
@@ -235,6 +232,8 @@ Upgrades Notiz to its latest version.
 
 A simple wrapper around the `npm i -g ...` command.
 
+> *Has the alias* `u`.
+
 ```
 notiz upgrade
 
@@ -250,6 +249,8 @@ Options:
 Updates the current database credentials used by Notiz.
 
 The credentials are stored on `~/.notiz/database` in a encrypted file.
+
+> *Has the alias* `a`.
 
 ```
 notiz auth
