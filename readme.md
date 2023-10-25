@@ -95,11 +95,15 @@ bun transpile
 notiz <cmd> [options]
 
 Commands:
-  notiz auth              Updates the database access configuration
-  notiz list              List all notes
-  notiz delete <id...>    Delete note(s) by ID(s) ("all" to delete all)
-  notiz open <id>         Opens a note
-  notiz create [note...]  Create a note
+  notiz upgrade                     Upgrades the command to its latest version
+  notiz auth                        Updates the database access configuration
+  notiz configure <option> <value>  Configures the CLI options
+  notiz search <content>            Search notes by content
+  notiz list                        List all notes
+  notiz delete <id...>              Delete note(s) by ID(s) ("all" to delete all)
+  notiz open <id>                   Opens a note by its ID
+  notiz view <id>                   Views a note by its ID
+  notiz create                      Create a note
 
 Options:
   --help     Show help                                                 [boolean]
@@ -168,6 +172,24 @@ Positionals:
 Options:
       --version  Show version number                                   [boolean]
   -e, --expires  Sets a new note expiration time                        [string]
+```
+
+### View
+
+Views a note by its ID.
+
+Used for viewing the actual content of the note.
+
+```
+notiz view <id>
+
+Views a note by its ID
+
+Positionals:
+  id  Note id ("last" to view the last one)                  [string] [required]
+
+Options:
+  --version  Show version number                                       [boolean]
 ```
 
 ### Delete

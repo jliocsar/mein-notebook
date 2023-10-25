@@ -22,6 +22,7 @@ type { Note, ProjectedNote, ProjectedNoteShortId } from ./db/schema.civet
   BANNER
   OPTIONS_FILE
   EDIT_NOTE_TEMPLATE
+  NOTE_VIEW_TEMPLATE
   PREVIEW_NOTE_TEMPLATE
 } from ./const.civet
 
@@ -134,6 +135,40 @@ export class Notes
       logger.error (error as Error).message
       exit 1
 
+  view(args?: ArgumentsCamelCase<{ id?: string }>) : Promise<void>
+    try
+      shortId := args?.id
+      unless shortId
+        throw new Error 'No note ID entered'
+      id .= null
+      if args.id is 'last'
+        id = await @findLastEditedId()
+      else
+        map := await @mapShortNotesIds()
+        id = map.get shortId
+      unless id
+        throw new Error 'Note not found'
+      current := @collection!
+        |> .findOne<Note>
+          { _id: id }
+          projection: NOTE_FIND_PROJECTION
+        |> await
+      unless current
+        throw new Error 'Note not found'
+      content := StringUtils.format NOTE_VIEW_TEMPLATE, {
+        current.title
+        current.content
+        createdAt: C.dim `Created at ${current.createdAt.toLocaleString()}`
+        expiresAt: current.expiresAt ? C.dim `Expires at ${current.expiresAt.toLocaleString()}` : ''
+      }
+      content
+        |> cliMd
+        |> stdout.write
+      void 0
+    catch error
+      logger.error (error as Error).message
+      exit 1
+
   open(args?: ArgumentsCamelCase<{ id?: string; expires?: string }>) : Promise<void>
     try
       shortId := args?.id
@@ -142,14 +177,7 @@ export class Notes
       { openOnEditor } := await import './editor.civet'
       id .= null
       if args.id is 'last'
-        lastEdited := @collection!
-          |> .findOne {},
-            projection: { _id: 1 }
-            sort: { updatedAt: -1 }
-          |> await
-        unless lastEdited
-          throw new Error 'No notes found'
-        id = lastEdited._id
+        id = await @findLastEditedId()
       else
         map := await @mapShortNotesIds()
         id = map.get shortId
@@ -165,7 +193,7 @@ export class Notes
       content := StringUtils.format EDIT_NOTE_TEMPLATE, {
         current.title
         current.content
-        expiresAt: current.expiresAt
+        current.expiresAt
       }
         |> openOnEditor { goToLine: '$' }
         |> await
@@ -279,6 +307,16 @@ export class Notes
       logger.error (error as Error).message
       exit 1
     void 0
+
+  private findLastEditedId()
+    lastEdited := @collection!
+      |> .findOne {},
+        projection: { _id: 1 }
+        sort: { updatedAt: -1 }
+      |> await
+    unless lastEdited
+      throw new Error 'No notes found'
+    lastEdited._id
 
   private mapShortNotesIds()
     notes := @collection!

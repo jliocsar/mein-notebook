@@ -52,6 +52,14 @@ title: {title}
 
 {content}
 """
+NOTE_VIEW_TEMPLATE := """
+# {title}
+
+{content}
+
+> {createdAt}
+> {expiresAt}
+"""
 
 export
   BANNER,
@@ -61,6 +69,7 @@ export
   EDIT_NOTE_TEMPLATE,
   PREVIEW_NOTE_TEMPLATE,
   NOTIZ_PATH,
+  NOTE_VIEW_TEMPLATE,
   OPTIONS_FILE,
   SECRET,
   TMP_FILE_NAME
