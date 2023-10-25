@@ -53,7 +53,7 @@ title: {title}
 {content}
 """
 NOTE_VIEW_TEMPLATE := """
-# {title}
+# [{shortId}] {title}
 
 {content}
 

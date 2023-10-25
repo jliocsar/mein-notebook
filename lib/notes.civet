@@ -28,7 +28,7 @@ type { Note, ProjectedNote, ProjectedNoteShortId } from ./db/schema.civet
 
 type NotizOptions
   editor: string
-type PrintNotesOptions
+type printNotesPreviewOptions
   disableHeader?: boolean
 
 export NOTE_FIELD_CHOICES := ['id', 'content', 'createdAt', 'expiresAt']
@@ -71,7 +71,7 @@ export class Notes
     await Bun.write OPTIONS_FILE, JSON.stringify currentOptions
     void 0
 
-  printNotes(notes: WithId<Note>[], args?: ArgumentsCamelCase<{ sort?: string, sortdesc?: string }>, options?: PrintNotesOptions) : Promise<void>
+  printNotesPreview(notes: WithId<Note>[], args?: ArgumentsCamelCase<{ sort?: string, sortdesc?: string }>, options?: printNotesPreviewOptions) : Promise<void>
     length := notes.length
     if length is 0
       logger.clearPL()
@@ -135,32 +135,42 @@ export class Notes
       logger.error (error as Error).message
       exit 1
 
-  view(args?: ArgumentsCamelCase<{ id?: string }>) : Promise<void>
+  view(args?: ArgumentsCamelCase<{ id?: string[] }>) : Promise<void>
     try
-      shortId := args?.id
-      unless shortId
+      argsIds := args?.id
+      unless argsIds?.length
         throw new Error 'No note ID entered'
-      id .= null
-      if args.id is 'last'
-        id = await @findLastEditedId()
-      else
-        map := await @mapShortNotesIds()
-        id = map.get shortId
-      unless id
-        throw new Error 'Note not found'
-      current := @collection!
-        |> .findOne<Note>
-          { _id: id }
+      ids := []
+      switch argsIds
+        ['last']
+          ids.push await @findLastEditedId()
+        ['all']
+          // no-op
+        else
+          map := await @mapShortNotesIds()
+          for shortId of argsIds
+            if map.has shortId
+              ids.push map.get(shortId)
+      notes := @collection!
+        |> .find<WithId<Note>>
+          { ...(ids.length and {
+            _id: ids
+          }) }
           projection: NOTE_FIND_PROJECTION
+        |> .toArray()
         |> await
-      unless current
-        throw new Error 'Note not found'
-      content := StringUtils.format NOTE_VIEW_TEMPLATE, {
-        current.title
-        current.content
-        createdAt: C.dim `Created at ${current.createdAt.toLocaleString()}`
-        expiresAt: current.expiresAt ? C.dim `Expires at ${current.expiresAt.toLocaleString()}` : ''
-      }
+      if notes.length is 0
+        throw new Error 'No note not found'
+      content := notes
+        |> .map (note) ->
+          StringUtils.format NOTE_VIEW_TEMPLATE, {
+            note.title
+            note.content
+            shortId: ObjectIdUtils.objectIdAlias note.id
+            createdAt: C.dim `Created at ${note.createdAt.toLocaleString()}`
+            expiresAt: note.expiresAt ? C.dim `Expires at ${note.expiresAt.toLocaleString()}` : ''
+          }
+        |> .join '\n---\n'
       content
         |> cliMd
         |> stdout.write
@@ -176,11 +186,12 @@ export class Notes
         throw new Error 'No note ID entered'
       { openOnEditor } := await import './editor.civet'
       id .= null
-      if args.id is 'last'
-        id = await @findLastEditedId()
-      else
-        map := await @mapShortNotesIds()
-        id = map.get shortId
+      switch args.id
+        'last'
+          id = await @findLastEditedId()
+        else
+          map := await @mapShortNotesIds()
+          id = map.get shortId
       unless id
         throw new Error 'Note not found'
       current := @collection!
@@ -261,7 +272,7 @@ export class Notes
             projection: NOTE_FIND_PROJECTION
         |> .toArray()
         |> await
-      await @printNotes notes, args
+      await @printNotesPreview notes, args
     catch error
       logger.error 'Failed to load notes'
       logger.error (error as Error).message
@@ -279,7 +290,7 @@ export class Notes
           projection: NOTE_FIND_PROJECTION
         |> .toArray()
         |> await
-      await @printNotes rows, args
+      await @printNotesPreview rows, args
     catch error
       logger.error 'Failed to search notes'
       logger.error (error as Error).message

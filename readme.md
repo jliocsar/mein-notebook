@@ -100,9 +100,9 @@ Commands:
   notiz configure <option> <value>  Configures the CLI options
   notiz search <content>            Search notes by content
   notiz list                        List all notes
-  notiz delete <id...>              Delete note(s) by ID(s) ("all" to delete all)
+  notiz delete <id...>              Delete note(s) by ID(s)
   notiz open <id>                   Opens a note by its ID
-  notiz view <id>                   Views a note by its ID
+  notiz view <id...>                Views note(s) by ID(s)
   notiz create                      Create a note
 
 Options:
@@ -176,17 +176,18 @@ Options:
 
 ### View
 
-Views a note by its ID.
+Views note(s) by ID(s).
 
 Used for viewing the actual content of the note.
 
 ```
-notiz view <id>
+notiz view <id...>
 
-Views a note by its ID
+Views note(s) by ID(s)
 
 Positionals:
-  id  Note id ("last" to view the last one)                  [string] [required]
+  id  Note id(s) ("last" to view the last one, "all" to view all)
+                                                [array] [required] [default: []]
 
 Options:
   --version  Show version number                                       [boolean]
@@ -201,7 +202,7 @@ You can either provide 1+ IDs to delete, or the string `"all"` to delete all not
 ```
 notiz delete <id...>
 
-Delete note(s) by ID(s) ("all" to delete all)
+Delete note(s) by ID(s)
 
 Positionals:
   id  Note id                                   [array] [required] [default: []]
