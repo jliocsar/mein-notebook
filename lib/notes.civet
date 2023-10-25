@@ -6,6 +6,7 @@ dayjs from dayjs
 // @ts-expect-error - no types
 cliMd from cli-markdown
 * as C from colorette
+{ z } from zod
 
 type { Note, ProjectedNote, ProjectedNoteShortId } from ./db/schema.civet
 { createClient, notesCollection } from ./db/client.civet
@@ -13,8 +14,16 @@ type { Note, ProjectedNote, ProjectedNoteShortId } from ./db/schema.civet
 { Prompt } from ./prompt.civet
 { authInstance } from ./auth.civet
 { logger } from ./logger.civet
-{ BANNER, OPTIONS_FILE } from ./const.civet
-{ DateUtils, SortUtils } from ./utils.civet
+{ StringUtils } from ./utils/string.civet
+{ DateUtils } from ./utils/date.civet
+{ SortUtils } from ./utils/sort.civet
+{ MarkdownUtils } from ./utils/markdown.civet
+{
+  BANNER
+  OPTIONS_FILE
+  EDIT_NOTE_TEMPLATE
+  PREVIEW_NOTE_TEMPLATE
+} from ./const.civet
 
 type NotizOptions
   editor: string
@@ -28,12 +37,15 @@ NOTE_SHORT_ID_PROJECTION := {
   shortId: { $substr: [{ $toString: '$_id' }, 21, 24] }
 } as const
 NOTE_FIND_PROJECTION := Object.assign {
+  title: 1
   content: 1
   createdAt: 1
   expiresAt: 1
 } as const, NOTE_SHORT_ID_PROJECTION
 
 export class Notes
+  private noteMetadataSchema := z.object
+    title: z.string().min(2).max(64)
   private collection?: Collection<Note>
   private authNoop = false
 
@@ -61,23 +73,25 @@ export class Notes
   printNotes(notes: WithId<Note>[], args?: ArgumentsCamelCase<{ sort?: string, sortdesc?: string }>, options?: PrintNotesOptions) : Promise<void>
     length := notes.length
     if length is 0
+      logger.clearPL()
       logger.success C.bold 'No notes found'
       exit 0
     markdown .= ''
     expired : ObjectId[] := []
-    rows : WithId<Omit<Note, 'createdAt' | 'expiresAt'> & { createdAt: string; expiresAt: string }>[] .= []
-    for { id, content, createdAt, expiresAt } of notes
+    rows : WithId<Pick<Note, 'title' | 'createdAt' | 'expiresAt'>>[] .= []
+    for { id, title, createdAt, expiresAt } of notes
       hasExpired := expiresAt and expiresAt < new Date()
       if hasExpired
         expired.push id
       else
         rows.push {
           id
-          content
-          createdAt: createdAt.toLocaleString()
-          expiresAt: expiresAt?.toLocaleString() or ''
+          title
+          createdAt
+          expiresAt
         }
     unless expired.length is 0
+      logger.clearPL()
       logger.warn 'Some notes have expired'
       await @collection!.deleteMany
         _id: { $in: expired }
@@ -88,25 +102,23 @@ export class Notes
     unless options?.disableHeader
       logger.clearPL()
       logger.success C.bold 'Notes:'
-    for { id, content, createdAt, expiresAt }, index of rows
-      markdown += `# ${ObjectIdUtils.objectIdAlias id}
-
-  ${content}
-
-  ${C.dim 'Created at ' + createdAt.toLocaleString()}
-  ${expiresAt ? C.dim `- Expires at ${expiresAt}` : ''}
-  ${index < length - 1 ? '\n\n---\n\n' : ''}`
+    for { id, title, createdAt, expiresAt } of rows
+      markdown += StringUtils.format(PREVIEW_NOTE_TEMPLATE, {
+        title
+        createdAt: C.dim `created at ${createdAt.toLocaleString()}`
+        expiresAt: expiresAt ? C.dim `\n  - expires at ${expiresAt.toLocaleString()}` : ''
+        shortId: C.redBright ObjectIdUtils.objectIdAlias id
+      }) + '\n'
     markdown
       |> cliMd
       |> stdout.write
     void 0
 
   deleteByShortIds(shortIds?: string[]) : Promise<void>
-    unless shortIds?.length
-      logger.error 'No note ID entered'
-      exit 1
-    shouldDeleteAll := shortIds.length is 1 and shortIds.0 is 'all'
     try
+      unless shortIds?.length
+        throw new Error 'No note ID entered'
+      shouldDeleteAll := shortIds.length is 1 and shortIds.0 is 'all'
       if shouldDeleteAll
         await @collection!.deleteMany {}
         return
@@ -122,34 +134,56 @@ export class Notes
       logger.error (error as Error).message
       exit 1
 
-  update(args?: ArgumentsCamelCase<{ id?: string; expires?: string }>) : Promise<void>
-    shortId := args?.id
-    unless shortId
-      logger.error 'No note ID entered'
-      exit 1
+  open(args?: ArgumentsCamelCase<{ id?: string; expires?: string }>) : Promise<void>
     try
+      shortId := args?.id
+      unless shortId
+        throw new Error 'No note ID entered'
       { openOnEditor } := await import './editor.civet'
-      map := await @mapShortNotesIds()
-      id := map.get shortId
+      id .= null
+      if args.id is 'last'
+        lastEdited := @collection!
+          |> .findOne {},
+            projection: { _id: 1 }
+            sort: { updatedAt: -1 }
+          |> await
+        unless lastEdited
+          throw new Error 'No notes found'
+        id = lastEdited._id
+      else
+        map := await @mapShortNotesIds()
+        id = map.get shortId
       unless id
-        logger.error 'Note not found'
-        exit 1
+        throw new Error 'Note not found'
       current := @collection!
-        |> .findOne<Pick<Note, 'content'>>
+        |> .findOne<Pick<Note, 'title' | 'content' | 'expiresAt'>>
           { _id: id }
-          projection: { content: 1 }
+          projection: { title: 1, content: 1, expiresAt: 1 }
         |> await
-      content := current!.content
-        |> openOnEditor
+      unless current
+        throw new Error 'Note not found'
+      content := StringUtils.format EDIT_NOTE_TEMPLATE, {
+        current.title
+        current.content
+        expiresAt: current.expiresAt
+      }
+        |> openOnEditor { goToLine: '$' }
         |> await
+      { metadata, inputContent } := MarkdownUtils.metadata content, @noteMetadataSchema
+      unless inputContent
+        throw new Error 'No content entered'
+      if current.content is inputContent
+        return
       expiresAt := if args?.expires then DateUtils.formatExpiresAt dayjs(), args.expires
       await @collection!.updateOne
         { _id: id }
         $set: {
-          content,
+          metadata.title
+          content: inputContent
+          updatedAt: new Date()
           ...(expiresAt instanceof Date and { expiresAt })
         }
-      await @listAll()
+      void 0
     catch error
       switch (error as Error).message
         /UNIQUE constraint/
@@ -158,23 +192,28 @@ export class Notes
           logger.error (error as Error).message
       exit 1
 
-  create(args?: ArgumentsCamelCase<{ note?: string[]; expires?: string }>) : Promise<void>
-    createdAt := dayjs()
-    expiresAt .= null
+  create(args?: ArgumentsCamelCase<{ expires?: string }>) : Promise<void>
     try
+      createdAt := dayjs()
+      expiresAt .= null
       { openOnEditor } := await import './editor.civet'
-      content := switch args?.note
-        []
-          await openOnEditor()
-        [...items]
-          items.join ' '
-      unless content  
-        logger.error 'No note entered'
-        exit 1
+      initialTemplate := StringUtils.format EDIT_NOTE_TEMPLATE, {
+        title: ''
+        expiresAt: ''
+        content: ''
+      }
+      content := initialTemplate
+        |> openOnEditor { goToLine: 2 }
+        |> await
+      { metadata, inputContent } := MarkdownUtils.metadata content, @noteMetadataSchema
+      unless inputContent
+        throw new Error 'No content entered'
       expiresAt = if args?.expires then DateUtils.formatExpiresAt createdAt, args.expires
       await @collection!.insertOne {
-        content,
-        createdAt: createdAt.toDate(),
+        content: inputContent
+        metadata.title
+        createdAt: createdAt.toDate()
+        updatedAt: createdAt.toDate()
         ...(expiresAt instanceof Date and { expiresAt })
       }
       await @listAll()
@@ -185,34 +224,6 @@ export class Notes
         else
           logger.error (error as Error).message
       exit 1
-
-  view(args?: ArgumentsCamelCase<{ id?: string, contentOnly?: boolean }>) : Promise<void>
-    shortId := args?.id
-    unless shortId
-      logger.error 'No note ID entered'
-      exit 1
-    try
-      map := await @mapShortNotesIds()
-      id := map.get shortId
-      unless id
-        logger.error 'Note not found'
-        exit 1
-      note := @collection!
-        |> .findOne<ProjectedNote> { _id: id },
-            projection: NOTE_FIND_PROJECTION
-        |> await
-      unless note
-        logger.error 'Note not found'
-        exit 1
-      if args?.contentOnly
-        stdout.write note.content
-      else
-        await @printNotes [note], args, { +disableHeader }
-    catch error
-      logger.error 'Failed to view note'
-      logger.error (error as Error).message
-      exit 1
-    void 0
 
   listAll(args?: ArgumentsCamelCase<{ sort?: string, sortdesc?: string }>) : Promise<void>
     try

@@ -55,13 +55,6 @@ yargs hideBin argv
     (args) ->
       args |> $.configure |> await
       exit 0
-  |> .command 'view <id>', "View a note",
-    (yargs) -> yargs
-      |> .positional 'id', { describe: 'Note id', type: 'string' }
-      |> .option 'content-only', { describe: 'Only view the note content', type: 'boolean', alias: 'c' }
-    (args) ->
-      args |> $.view |> await
-      exit 0
   |> .command 'search <content>', 'Search notes by content',
     (yargs) -> yargs
       |> .positional 'content', { describe: 'Note content', type: 'string' }
@@ -99,16 +92,15 @@ yargs hideBin argv
     (args) ->
       args.id |> $.deleteByShortIds |> await
       exit 0
-  |> .command 'update <id>', 'Update a note',
+  |> .command 'open <id>', 'Opens a note by its ID',
     (yargs) -> yargs
-      |> .positional 'id', { describe: 'Note id', type: 'string' }
-      |> .option 'expires', { describe: 'Note expiration time', type: 'string', alias: 'e', -required }
+      |> .positional 'id', { describe: 'Note id ("last" to open the last one)', type: 'string' }
+      |> .option 'expires', { describe: 'Sets a new note expiration time', type: 'string', alias: 'e', -required }
     (args) ->
-      args |> $.update |> await
+      args |> $.open |> await
       exit 0
-  |> .command 'create [note...]', 'Create a note',
+  |> .command 'create', 'Create a note',
     (yargs) -> yargs
-      |> .positional 'note', { describe: 'Note content', type: 'string', -required, +array }
       |> .option 'expires', { describe: 'Note expiration time', type: 'string', alias: 'e', -required }
     (args) ->
       args |> $.create |> await

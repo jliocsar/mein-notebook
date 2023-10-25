@@ -41,12 +41,25 @@ BANNER := C.magenta
                ${C.italic C.white 'notiz'}
 
   `
+PREVIEW_NOTE_TEMPLATE := """
+- [{shortId}] {title}
+  - {createdAt} {expiresAt}
+"""
+EDIT_NOTE_TEMPLATE := """
+---
+title: {title}
+---
+
+{content}
+"""
 
 export
   BANNER,
   DATABASE_CONFIG_PATH,
   EDITOR,
   HOME,
+  EDIT_NOTE_TEMPLATE,
+  PREVIEW_NOTE_TEMPLATE,
   NOTIZ_PATH,
   OPTIONS_FILE,
   SECRET,

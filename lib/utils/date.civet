@@ -13,18 +13,3 @@ export class DateUtils
         Number time
         period as dayjs.ManipulateType
       |> .toDate()
-
-export class SortUtils
-  @sortBy(field: string)
-    (orig: any, comp: any) ->
-      unless orig[field] and comp[field]
-        0
-      else
-        orig[field]! > comp[field]! ? 1 : -1
-
-  @sortByDesc(field: string)
-    (orig: any, comp: any) ->
-      unless orig[field] and comp[field]
-        0
-      else
-        orig[field]! < comp[field]! ? 1 : -1

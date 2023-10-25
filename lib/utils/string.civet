@@ -1,0 +1,5 @@
+pupa, { type Options: PupaOptions } from pupa
+
+export class StringUtils
+  @format<T extends Record<string, any>>(template: string, data: T, options?: PupaOptions)
+    pupa template, data, options

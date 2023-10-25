@@ -1,6 +1,6 @@
 {
   "name": "@jliocsar/notiz-cli",
-  "version": "0.2.9",
+  "version": "0.3.0",
   "main": "notiz.ts",
   "type": "module",
   "bin": {
@@ -28,6 +28,9 @@
     "dayjs": "latest",
     "mongodb": "latest",
     "on-exit-leak-free": "latest",
-    "yargs": "latest"
+    "parse-md": "latest",
+    "pupa": "latest",
+    "yargs": "latest",
+    "zod": "latest"
   }
 }

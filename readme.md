@@ -21,12 +21,15 @@ Notiz is a CLI notes manager.
 
 It outputs notes in markdown format, meaning you can add tables, code snippets with syntax highlight, URLs and much more to notes that are displayed directly in your terminal.
 
-All notes are stored in your own [MongoDB Atlas][mongodb-atlas-url] instance: _your data is yours_.
+All notes are stored in your own [MongoDB][mongodb-url] instance: _your data is yours_. The easiest way is using a free M0 database from [MongoDB Atlas][mongodb-atlas-url].
 This also means you can treat your notes as actual documents/records that will be persisted until you delete them through either your CLI or directly in your database (i.e. DB tools).
+
+**Keep in mind this is a work in progress!**
 
 ## Requirements
 
 - [Bun][bun-url] 1.0.0 or above;
+- [MongoDB][mongodb-url];
 - Git.
 
 ## Installation
@@ -34,7 +37,6 @@ This also means you can treat your notes as actual documents/records that will b
 Simply install the CLI tool from `npm`:
 
 > **Note**
->
 > Can't install globally with Bun yet, since Bun isn't currently running `postinstall` scripts.
 
 ```sh
@@ -56,7 +58,6 @@ notiz auth
 Make sure you input your MongoDB connection URI with your username & password authentication!
 
 > **Note**
->
 > Your URI will be stored in a encrypted file in the `~/.notiz` directory, it'll use your `NOTIZ_SECRET` env. variable as a secret for the encryption.
 
 ## Development
@@ -97,7 +98,7 @@ Commands:
   notiz auth              Updates the database access configuration
   notiz list              List all notes
   notiz delete <id...>    Delete note(s) by ID(s) ("all" to delete all)
-  notiz update <id>       Update a note
+  notiz open <id>         Opens a note
   notiz create [note...]  Create a note
 
 Options:
@@ -106,7 +107,6 @@ Options:
 ```
 
 > **Important**
->
 > The default editor used by Notiz is configured by the `notiz configure editor` command, or by setting the `VISUAL`/`EDITOR` env. variables.
 > If neither are present, Notiz will use [`nvim`][nvim-url] by default.
 >
@@ -133,38 +133,41 @@ Options:
 
 Creates a new note.
 
+The `create` command will open the configured editor to create a new note.
+The metadata part of the document will have a `title` field that's **required**, besides the actual note content.
+
+> **Warning**
+> Notes cannot be empty! They must have a content to be stored.
+
 Each note can have an `expires at` date, which is a combination of `[value] [unit]`, the unit being any available from the [dayjs](https://day.js.org/docs/en/manipulate/add#list-of-all-available-units) library.
 
-If you're creating a short note, you can use the shorthand command and simply provide your note at the end, like `notiz create my new note`.
-
 ```
-notiz create [note...]
+notiz create
 
 Create a note
 
-Positionals:
-  note  Note content                                       [array] [default: []]
-
 Options:
       --help     Show help                                             [boolean]
   -e, --expires  Note expiration time                                   [string]
 ```
 
-### Update
+### Open
 
-Updates a note content by its ID.
+Opens a note by its ID.
+
+Used for updating or just viewing a note.
 
 ```
-notiz update <id>
+notiz open <id>
 
-Update a note
+Opens a note by its ID
 
 Positionals:
-  id  Note id                                                [number] [required]
+  id  Note id ("last" to open the last one)                  [string] [required]
 
 Options:
-      --help     Show help                                             [boolean]
-  -e, --expires  Note expiration time                                   [string]
+      --version  Show version number                                   [boolean]
+  -e, --expires  Sets a new note expiration time                        [string]
 ```
 
 ### Delete
@@ -236,7 +239,6 @@ Options:
 
 ## TODO
 
-- [ ] Fix search;
 - [ ] Write docs using GH's Wiki.
 
 ## Contributing

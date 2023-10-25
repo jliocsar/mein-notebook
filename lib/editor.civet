@@ -2,21 +2,20 @@
 
 { EDITOR, TMP_FILE_NAME } from ./const.civet
 
-DefaultEditorsArgs := {
-  Vi: ['-n']
-} as const
+type OpenOnEditorOptions
+  goToLine?: number | string
 
-getDefaultEditorArgs := (editor: string) : string[] ->
-  switch editor
+getDefaultEditorArgs := ({ goToLine }: OpenOnEditorOptions = {}) : string[] ->
+  switch EDITOR
     'vi'
     'vim'
     'nvim'
-      DefaultEditorsArgs.Vi
+      ['-n', goToLine ? `-c ':${goToLine}'` : '']
   []
 
-export openOnEditor := (initialBuffer = '') ->
+export openOnEditor := (options?: OpenOnEditorOptions) -> (initialBuffer = '') ->
   await Bun.write TMP_FILE_NAME, initialBuffer
-  editorArgs := getDefaultEditorArgs EDITOR
+  editorArgs := getDefaultEditorArgs options
   editor := spawnSync
     EDITOR
     editorArgs.concat [TMP_FILE_NAME]

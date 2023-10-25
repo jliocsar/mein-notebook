@@ -1,0 +1,16 @@
+{ type ZodType, ZodError, TypeOf } from zod
+parseMD from parse-md
+
+export class MarkdownUtils
+  @metadata<T extends ZodType>(markdown: string, schema: T): { inputContent: string; metadata: TypeOf<T> }
+    try
+      { metadata, content } := parseMD markdown
+      return {
+        inputContent: content.trim()
+        metadata: schema.parse metadata as TypeOf<T>
+      }
+    catch error
+      if error instanceof ZodError
+        [head] := error.errors
+        throw new Error `${head.message} (${head.path.0})`
+      throw error
