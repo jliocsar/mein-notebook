@@ -263,7 +263,8 @@ Options:
 
 ## TODO
 
-- [ ] Write docs using GH's Wiki.
+- [ ] Write docs using GH's Wiki;
+- [ ] Auto-sync docs after a few mins.
 
 ## Contributing
 

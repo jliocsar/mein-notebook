@@ -6,7 +6,9 @@ path from node:path
 
 HOME := env.HOME!
 SECRET := env.NOTIZ_SECRET!
-TMP_FILE_NAME := path.resolve '/tmp', 'notiz_tmp_buffer.md'
+TMP_PATH := '/tmp/notiz'
+unless fs.existsSync TMP_PATH
+  fs.mkdirSync TMP_PATH
 NOTIZ_PATH := path.resolve HOME, '.notiz'
 OPTIONS_PATH := path.resolve NOTIZ_PATH, 'options'
 unless fs.existsSync OPTIONS_PATH
@@ -72,4 +74,4 @@ export
   NOTE_VIEW_TEMPLATE,
   OPTIONS_FILE,
   SECRET,
-  TMP_FILE_NAME
+  TMP_PATH

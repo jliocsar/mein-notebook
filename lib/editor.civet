@@ -1,9 +1,13 @@
+* as path from node:path
 { spawnSync } from node:child_process
 
-{ EDITOR, TMP_FILE_NAME } from ./const.civet
+{ logger } from ./logger.civet
+{ Prompt } from ./prompt.civet
+{ EDITOR, TMP_PATH } from ./const.civet
 
 type OpenOnEditorOptions
   goToLine?: number | string
+  shortId?: string
 
 getDefaultEditorArgs := ({ goToLine }: OpenOnEditorOptions = {}) : string[] ->
   switch EDITOR
@@ -14,14 +18,26 @@ getDefaultEditorArgs := ({ goToLine }: OpenOnEditorOptions = {}) : string[] ->
   []
 
 export openOnEditor := (options?: OpenOnEditorOptions) -> (initialBuffer = '') ->
-  await Bun.write TMP_FILE_NAME, initialBuffer
+  fileName := path.resolve TMP_PATH, `note-${options?.shortId || 'new'}.md`
+  if options?.shortId
+    currentFileContent := fileName
+      |> Bun.file
+      |> .text()
+      |> await
+    if currentFileContent is not initialBuffer
+      logger.error 'The local file is different than the remote!'
+      prompts := new Prompt
+      if await prompts.question 'Would you like to overwrite local with remote?'
+        await Bun.write fileName, initialBuffer
+      else
+        logger.info 'Opening file with local changes'
+  else
+    await Bun.write fileName, initialBuffer
   editorArgs := getDefaultEditorArgs options
   editor := spawnSync
     EDITOR
-    editorArgs.concat [TMP_FILE_NAME]
+    editorArgs.concat [fileName]
     stdio: 'inherit'
   if editor.status
     throw new Error 'Failed to open editor'
-  Bun.file TMP_FILE_NAME
-    |> .text()
-    |> await
+  fileName |> Bun.file |> .text()
