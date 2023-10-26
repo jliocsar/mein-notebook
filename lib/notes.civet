@@ -91,9 +91,10 @@ export class Notes
       logger.error (error as Error).message
       exit 1
 
-  view(args?: ArgumentsCamelCase<{ id?: string[] }>) : Promise<void>
+  view(args?: Partial<ArgumentsCamelCase<{ id?: string[] }>>, options?: printNotesPreviewOptions) : Promise<void>
     try
-      logger.info 'Loading notes...'
+      unless options?.disableHeader
+        logger.info 'Loading notes...'
       argsIds := args?.id ?? []
       ids : ObjectId[] := []
       switch argsIds
@@ -114,13 +115,13 @@ export class Notes
         |> await
       if notes.length is 0
         throw new Error 'No note not found'
-      @printNotes notes
+      @printNotes notes, options
     catch error
       logger.clearPL()
       logger.error (error as Error).message
       exit 1
 
-  open(args?: ArgumentsCamelCase<{ id?: string; expires?: string }>) : Promise<void>
+  open(args?: Partial<ArgumentsCamelCase<{ id?: string; expires?: string }>>) : Promise<void>
     try
       { openOnEditor } := await import './editor.civet'
       shortId := args?.id ?? ''
@@ -154,7 +155,7 @@ export class Notes
       unless inputContent
         throw new Error 'No content entered'
       if current.content is inputContent
-        return
+        return @view { id: [shortId] }, { +disableHeader }
       expiresAt := if args?.expires then DateUtils.formatExpiresAt dayjs(), args.expires
       await @collection!.updateOne
         { _id: id }
@@ -164,7 +165,7 @@ export class Notes
           updatedAt: new Date()
           ...(expiresAt instanceof Date and { expiresAt })
         }
-      void 0
+      @view { id: [shortId] }, { +disableHeader }
     catch error
       switch (error as Error).message
         /UNIQUE constraint/
@@ -173,7 +174,7 @@ export class Notes
           logger.error (error as Error).message
       exit 1
 
-  create(args?: ArgumentsCamelCase<{ expires?: string }>) : Promise<void>
+  create(args?: Partial<ArgumentsCamelCase<{ expires?: string }>>) : Promise<void>
     try
       createdAt := dayjs()
       expiresAt .= null
@@ -206,7 +207,7 @@ export class Notes
           logger.error (error as Error).message
       exit 1
 
-  preview(args?: ArgumentsCamelCase<{ sort?: string, sortdesc?: string }>) : Promise<void>
+  preview(args?: Partial<ArgumentsCamelCase<{ sort?: string, sortdesc?: string }>>) : Promise<void>
     try
       logger.info 'Loading preview...'
       notes := @collection!
@@ -220,7 +221,7 @@ export class Notes
       logger.error (error as Error).message
       exit 1
 
-  search(args?: ArgumentsCamelCase<{ content?: string, sort?: string, sortdesc?: string }>) : Promise<void>
+  search(args?: Partial<ArgumentsCamelCase<{ content?: string, sort?: string, sortdesc?: string }>>) : Promise<void>
     unless args?.content
       logger.error 'No search term entered'
       exit 1
@@ -261,9 +262,10 @@ export class Notes
       exit 1
     void 0
 
-  private printNotes(notes: WithId<Note>[])
+  private printNotes(notes: WithId<Note>[], options?: printNotesPreviewOptions)
     logger.clearPL()
-    logger.success C.bold 'Notes:'
+    unless options?.disableHeader
+      logger.success C.bold 'Notes:'
     notes
       |> .map (note) ->
         StringUtils.format NOTE_VIEW_TEMPLATE, {
@@ -278,7 +280,7 @@ export class Notes
       |> stdout.write
     void 0
 
-  private printNotesPreview(notes: WithId<Note>[], args?: ArgumentsCamelCase<{ sort?: string, sortdesc?: string }>, options?: printNotesPreviewOptions) : Promise<void>
+  private printNotesPreview(notes: WithId<Note>[], args?: Partial<ArgumentsCamelCase<{ sort?: string, sortdesc?: string }>>, options?: printNotesPreviewOptions) : Promise<void>
     length := notes.length
     if length is 0
       logger.clearPL()
