@@ -1,4 +1,5 @@
 * as path from node:path
+* as fs from node:fs
 { spawnSync } from node:child_process
 
 { logger } from ./logger.civet
@@ -20,6 +21,8 @@ getDefaultEditorArgs := ({ goToLine }: OpenOnEditorOptions = {}) : string[] ->
 export openOnEditor := (options?: OpenOnEditorOptions) -> (initialBuffer = '') ->
   fileName := path.resolve TMP_PATH, `note-${options?.shortId || 'new'}.md`
   if options?.shortId
+    unless fs.existsSync fileName
+      fs.writeFileSync fileName, initialBuffer
     currentFileContent := fileName
       |> Bun.file
       |> .text()

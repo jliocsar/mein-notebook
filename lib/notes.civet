@@ -124,14 +124,14 @@ export class Notes
   open(args?: Partial<ArgumentsCamelCase<{ id?: string; expires?: string }>>) : Promise<void>
     try
       { openOnEditor } := await import './editor.civet'
-      shortId := args?.id ?? ''
-      id .= null
+      shortId .= args?.id ?? ''
+      id : ObjectId | null .= null
       switch shortId
         '', 'last'
           id = await @findLastEditedId()
         else
           map := await @mapShortNotesIds()
-          id = map.get shortId
+          id = map.get(shortId)!
       unless id
         throw new Error 'Note not found'
       current := @collection!
@@ -141,13 +141,14 @@ export class Notes
         |> await
       unless current
         throw new Error 'Note not found'
+      shortId = ObjectIdUtils.objectIdAlias id
       content := StringUtils.format EDIT_NOTE_TEMPLATE, {
         current.title
         current.content
         current.expiresAt
       }
         |> openOnEditor {
-            shortId: ObjectIdUtils.objectIdAlias id
+            shortId
             goToLine: '$'
           }
         |> await
