@@ -36,8 +36,7 @@ This also means you can treat your notes as actual documents/records that will b
 
 Simply install the CLI tool from `npm`:
 
-> **Note**
-> Can't install globally with Bun yet, since Bun isn't currently running `postinstall` scripts.
+**Can't install globally with Bun yet, since Bun isn't currently running `postinstall` scripts**.
 
 ```sh
 npm i -g @jliocsar/notiz@latest
@@ -57,8 +56,7 @@ notiz auth
 
 Make sure you input your MongoDB connection URI with your username & password authentication!
 
-> **Note**
-> Your URI will be stored in a encrypted file in the `~/.notiz` directory, it'll use your `NOTIZ_SECRET` env. variable as a secret for the encryption.
+Your URI will be stored in a encrypted file in the `~/.notiz` directory, it'll use your `NOTIZ_SECRET` env. variable as a secret for the encryption.
 
 ## Development
 

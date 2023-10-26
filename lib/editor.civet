@@ -24,6 +24,7 @@ export openOnEditor := (options?: OpenOnEditorOptions) -> (initialBuffer = '') -
       |> Bun.file
       |> .text()
       |> await
+      |> .trim()
     if currentFileContent is not initialBuffer
       logger.error 'The local file is different than the remote!'
       prompts := new Prompt
