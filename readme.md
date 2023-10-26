@@ -101,8 +101,8 @@ Commands:
   notiz search <content>            Search notes by content         [aliases: s]
   notiz preview                     Preview all notes               [aliases: p]
   notiz delete <id...>              Delete note(s) by ID(s)         [aliases: d]
-  notiz open <id>                   Opens a note by its ID       [aliases: o, e]
-  notiz view [id...]                Views note(s) by ID(s)       [aliases: v, l]
+  notiz open [id]                   Opens a note by its ID       [aliases: o, e]
+  notiz view [id...]                Views note(s) by ID(s) [aliases: list, v, l]
   notiz create                      Create a note                [aliases: c, n]
 
 Options:
@@ -147,15 +147,17 @@ Opens a note by its ID.
 
 Used for updating or just viewing a note.
 
+Provide `"last"` or no IDs to open the last edited note.
+
 > *Has the alias* `o`.
 
 ```
-notiz open <id>
+notiz open [id]
 
 Opens a note by its ID
 
 Positionals:
-  id  Note id ("last" to open the last one)                  [string] [required]
+  id  Note id ("last" or none to open the last one)                     [string]
 
 Options:
       --help     Show help                                             [boolean]
@@ -168,6 +170,8 @@ Options:
 Views note(s) by ID(s).
 
 Used for viewing the actual content of the note.
+
+Provide `"last"` to view the last edited note, or no ID to view all notes.
 
 > *Has the aliases* `v` *and* `l`.
 
@@ -189,7 +193,7 @@ Options:
 
 Deletes note(s) by ID(s).
 
-You can either provide 1+ IDs to delete, or the string `"all"` to delete all notes.
+Provide `"all"` to delete all notes.
 
 > *Has the alias* `d`.
 
