@@ -92,7 +92,7 @@ yargs hideBin argv
     (yargs) -> yargs
       |> .positional 'id', { describe: 'Note id(s) ("all" to delete all)', type: 'string', +array }
     (args) ->
-      args.id |> $.deleteByShortIds |> await
+      args |> $.deleteByShortIds |> await
       exit 0
   |> .command ['open [id]', 'o', 'e'], 'Opens a note by its ID',
     (yargs) -> yargs
@@ -106,7 +106,7 @@ yargs hideBin argv
     (args) ->
       args |> $.open |> await
       exit 0
-  |> .command ['view [id...]', 'v', 'l'], 'Views note(s) by ID(s)',
+  |> .command ['view [id...]', 'list', 'v', 'l'], 'Views note(s) by ID(s)',
     (yargs) -> yargs
       |> .positional 'id', { describe: 'Note id(s) ("last" to view the last one, none to view all)', type: 'string', +array }
     (args) ->

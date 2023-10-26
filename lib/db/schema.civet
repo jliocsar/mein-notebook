@@ -7,7 +7,7 @@ export type Note
   updatedAt: Date
   expiresAt?: Date
 
-export type ProjectedNoteShortId =
+export type ProjectedNoteShortId
   id: ObjectId
   shortId: string
 

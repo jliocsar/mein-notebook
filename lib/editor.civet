@@ -19,7 +19,7 @@ getDefaultEditorArgs := ({ goToLine }: OpenOnEditorOptions = {}) : string[] ->
   []
 
 export openOnEditor := (options?: OpenOnEditorOptions) -> (initialBuffer = '') ->
-  fileName := path.resolve TMP_PATH, `note-${options?.shortId || 'new'}.md`
+  fileName := path.resolve TMP_PATH, `note-${options?.shortId or 'new'}.md`
   if options?.shortId
     unless fs.existsSync fileName
       fs.writeFileSync fileName, initialBuffer

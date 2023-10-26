@@ -59,7 +59,7 @@ export class Notes
         |> notesCollection
     @
 
-  configure(args?: ArgumentsCamelCase<{ option?: 'editor' | (string & {}), value?: string }>) : Promise<void>
+  configure(args?: Partial<ArgumentsCamelCase<{ option?: 'editor' | (string & {}), value?: string }>>) : Promise<void>
     unless args?.option and args?.value
       logger.error 'No option or value entered'
       exit 1
@@ -71,9 +71,10 @@ export class Notes
     await Bun.write OPTIONS_FILE, JSON.stringify currentOptions
     void 0
 
-  deleteByShortIds(shortIds?: string[]) : Promise<void>
+  deleteByShortIds(args: Partial<ArgumentsCamelCase<{ id?: string[] }>>) : Promise<void>
     try
-      unless shortIds?.length
+      shortIds := args?.id ?? []
+      unless shortIds.length
         throw new Error 'No note ID entered'
       shouldDeleteAll := shortIds.length is 1 and shortIds.0 is 'all'
       if shouldDeleteAll
@@ -264,8 +265,8 @@ export class Notes
     void 0
 
   private printNotes(notes: WithId<Note>[], options?: printNotesPreviewOptions)
-    logger.clearPL()
     unless options?.disableHeader
+      logger.clearPL()
       logger.success C.bold 'Notes:'
     notes
       |> .map (note) ->
@@ -320,7 +321,7 @@ export class Notes
           expiresAt: row.expiresAt ? C.dim `\n  - expires at ${row.expiresAt.toLocaleString()}` : ''
           shortId: C.redBright ObjectIdUtils.objectIdAlias row.id
         }
-      |> .join '\n'
+      |> .join '\n\n'
       |> cliMd
       |> stdout.write
     void 0

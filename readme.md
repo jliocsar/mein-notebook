@@ -172,15 +172,16 @@ Used for viewing the actual content of the note.
 > *Has the aliases* `v` *and* `l`.
 
 ```
-notiz view <id...>
+notiz view [id...]
 
 Views note(s) by ID(s)
 
 Positionals:
-  id  Note id(s) ("last" to view the last one, "all" to view all)
-                                                [array] [required] [default: []]
+  id  Note id(s) ("last" to view the last one, none to view all)
+                                                           [array] [default: []]
 
 Options:
+  --help     Show help                                                 [boolean]
   --version  Show version number                                       [boolean]
 ```
 

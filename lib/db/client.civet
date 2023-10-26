@@ -9,12 +9,12 @@ export createClient := (uri: string) ->
     appName: 'notiz'
     family: 4
     maxPoolSize: 10
-    serverApi:
+    serverApi: {
       version: ServerApiVersion.v1
-      strict: true
-      deprecationErrors: true
-  register client, ->
-    client.close true
+      +strict
+      +deprecationErrors
+    }
+  register client, -> client.close true
   client
 
 export notesCollection := (client: MongoClient) ->
