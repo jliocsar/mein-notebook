@@ -99,7 +99,7 @@ export class Notes
       argsIds := args?.id ?? []
       ids : ObjectId[] := []
       switch argsIds
-        ['last'] or ['@']
+        ['last'], ['@']
           ids.push await @findLastEditedId()
         []
           // no-op
