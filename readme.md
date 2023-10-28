@@ -147,7 +147,7 @@ Opens a note by its ID.
 
 Used for updating or just viewing a note.
 
-Provide `"last"` or no IDs to open the last edited note.
+Provide `"last"`/`"@"` or no IDs to open the last edited note.
 
 > *Has the alias* `o`.
 
@@ -157,7 +157,7 @@ notiz open [id]
 Opens a note by its ID
 
 Positionals:
-  id  Note id ("last" or none to open the last one)                     [string]
+  id  Note id ("last"/"@" or none to open the last one)                 [string]
 
 Options:
       --help     Show help                                             [boolean]
@@ -171,7 +171,7 @@ Views note(s) by ID(s).
 
 Used for viewing the actual content of the note.
 
-Provide `"last"` to view the last edited note, or no ID to view all notes.
+Provide `"last"`/`"@"` to view the last edited note, or no ID to view all notes.
 
 > *Has the aliases* `v` *and* `l`.
 
@@ -181,7 +181,7 @@ notiz view [id...]
 Views note(s) by ID(s)
 
 Positionals:
-  id  Note id(s) ("last" to view the last one, none to view all)
+  id  Note id(s) ("last"/"@" to view the last one, none to view all)
                                                            [array] [default: []]
 
 Options:

@@ -99,7 +99,7 @@ export class Notes
       argsIds := args?.id ?? []
       ids : ObjectId[] := []
       switch argsIds
-        ['last']
+        ['last'] or ['@']
           ids.push await @findLastEditedId()
         []
           // no-op
@@ -128,7 +128,7 @@ export class Notes
       shortId .= args?.id ?? ''
       id : ObjectId | null .= null
       switch shortId
-        '', 'last'
+        '', 'last', '@'
           id = await @findLastEditedId()
         else
           map := await @mapShortNotesIds()

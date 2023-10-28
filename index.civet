@@ -96,7 +96,7 @@ yargs hideBin argv
       exit 0
   |> .command ['open [id]', 'o', 'e'], 'Opens a note by its ID',
     (yargs) -> yargs
-      |> .positional 'id', { describe: 'Note id ("last" or none to open the last one)', type: 'string' }
+      |> .positional 'id', { describe: 'Note id ("last"/"@" or none to open the last one)', type: 'string' }
       |> .option 'expires', {
           describe: 'Sets a new note expiration time'
           type: 'string'
@@ -108,7 +108,7 @@ yargs hideBin argv
       exit 0
   |> .command ['view [id...]', 'list', 'v', 'l'], 'Views note(s) by ID(s)',
     (yargs) -> yargs
-      |> .positional 'id', { describe: 'Note id(s) ("last" to view the last one, none to view all)', type: 'string', +array }
+      |> .positional 'id', { describe: 'Note id(s) ("last"/"@" to view the last one, none to view all)', type: 'string', +array }
     (args) ->
       args |> $.view |> await
       exit 0
