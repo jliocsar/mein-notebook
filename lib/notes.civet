@@ -156,7 +156,7 @@ export class Notes
       { metadata, inputContent } := MarkdownUtils.metadata content, @noteMetadataSchema
       unless inputContent
         throw new Error 'No content entered'
-      if current.content is inputContent
+      if current.content is inputContent and metadata.title is current.title
         return @view { id: [shortId] }, { +disableHeader }
       expiresAt := if args?.expires then DateUtils.formatExpiresAt dayjs(), args.expires
       await @collection!.updateOne
